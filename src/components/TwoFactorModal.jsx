@@ -16,6 +16,10 @@ export default function TwoFactorModal({
   const [currentDevCode, setCurrentDevCode] = useState(devCode);
   const [currentToken, setCurrentToken] = useState(tempToken);
   const inputRefs = useRef([]);
+  // Evita envíos duplicados (auto-envío al 6º dígito + botón + pegado).
+  // Un doble envío consume el código en la primera petición y la segunda
+  // responde "expirado".
+  const submittingRef = useRef(false);
 
   useEffect(() => {
     // Foco automático en el primer input
@@ -75,6 +79,10 @@ export default function TwoFactorModal({
       return;
     }
 
+    // Ignorar cualquier envío mientras hay una verificación en curso
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+
     setLoading(true);
     setError('');
 
@@ -85,6 +93,7 @@ export default function TwoFactorModal({
       onSuccess(response.user);
     } catch (err) {
       setError(err.message || 'Código incorrecto o expirado.');
+      submittingRef.current = false;
     } finally {
       setLoading(false);
     }

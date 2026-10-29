@@ -20,27 +20,33 @@ export async function getBitacora(req, res) {
       WHERE 1=1
     `;
     const params = [];
+    const addParam = (value) => {
+      params.push(value);
+      return `$${params.length}`;
+    };
 
     if (accion && accion.trim() !== '') {
-      query += ` AND accion LIKE ?`;
-      params.push(`%${accion.trim()}%`);
+      query += ` AND accion ILIKE ${addParam(`%${accion.trim()}%`)}`;
     }
 
     if (nombre_usuario && nombre_usuario.trim() !== '') {
-      query += ` AND nombre_usuario LIKE ?`;
-      params.push(`%${nombre_usuario.trim()}%`);
+      query += ` AND nombre_usuario ILIKE ${addParam(`%${nombre_usuario.trim()}%`)}`;
     }
 
-    query += ` ORDER BY id_bitacora DESC LIMIT ? OFFSET ?`;
-    params.push(Number(limit), Number(offset));
+    const limite = Math.max(1, Number(limit) || 50);
+    const desplazamiento = Math.max(0, Number(offset) || 0);
 
-    const [rows] = await pool.query(query, params);
+    query += ` ORDER BY id_bitacora DESC LIMIT ${addParam(limite)} OFFSET ${addParam(desplazamiento)}`;
 
-    const [totalRows] = await pool.query('SELECT COUNT(*) AS total FROM bitacora_accesos');
+    const { rows } = await pool.query(query, params);
+
+    const { rows: totalRows } = await pool.query(
+      'SELECT COUNT(*) AS total FROM bitacora_accesos'
+    );
 
     return res.json({
       success: true,
-      total: totalRows[0].total,
+      total: Number(totalRows[0].total),
       data: rows
     });
   } catch (err) {

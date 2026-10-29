@@ -28,7 +28,7 @@ export async function login(req, res) {
     }
 
     // Buscar usuario y verificar datos
-    const [rows] = await pool.query(`
+    const { rows } = await pool.query(`
       SELECT 
         u.id_usuario, 
         u.nombre, 
@@ -43,9 +43,9 @@ export async function login(req, res) {
         r.estatus AS rol_estatus
       FROM usuarios u
       JOIN roles r ON r.id_rol = u.id_rol
-      WHERE u.nombre_usuario = ? OR u.correo = ?
+      WHERE u.nombre_usuario = $1 OR u.correo = $1
       LIMIT 1
-    `, [nombre_usuario.trim(), nombre_usuario.trim()]);
+    `, [nombre_usuario.trim()]);
 
     if (rows.length === 0) {
       await registrarBitacora(req, {
@@ -77,7 +77,7 @@ export async function login(req, res) {
     }
 
     // Verificar si el usuario está activo
-    if (user.usuario_estatus !== 1) {
+    if (Number(user.usuario_estatus) !== 1) {
       await registrarBitacora(req, {
         id_usuario: user.id_usuario,
         nombre_usuario: user.nombre_usuario,
@@ -92,7 +92,7 @@ export async function login(req, res) {
     }
 
     // Verificar si el rol asignado está activo
-    if (user.rol_estatus !== 1) {
+    if (Number(user.rol_estatus) !== 1) {
       await registrarBitacora(req, {
         id_usuario: user.id_usuario,
         nombre_usuario: user.nombre_usuario,
@@ -108,18 +108,22 @@ export async function login(req, res) {
 
     // Generar código 2FA numérico de 6 dígitos
     const code = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiration = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
 
     // Invalidar códigos anteriores no usados
     await pool.query(
-      'UPDATE codigos_2fa SET usado = 1 WHERE id_usuario = ? AND usado = 0',
+      `UPDATE codigos_2fa
+       SET usado = TRUE
+       WHERE id_usuario = $1
+         AND (usado = FALSE OR usado IS NULL)`,
       [user.id_usuario]
     );
 
-    // Guardar nuevo código
+    // Guardar nuevo código. La expiración se calcula en PostgreSQL para
+    // evitar desfases de zona horaria entre Node y Supabase.
     await pool.query(
-      'INSERT INTO codigos_2fa (id_usuario, codigo, expiracion) VALUES (?, ?, ?)',
-      [user.id_usuario, code, expiration]
+      `INSERT INTO codigos_2fa (id_usuario, codigo, expiracion, usado)
+       VALUES ($1, $2, NOW() + INTERVAL '10 minutes', FALSE)`,
+      [user.id_usuario, code]
     );
 
     // Enviar código al correo registrado
@@ -193,36 +197,21 @@ export async function verify2FA(req, res) {
 
     const id_usuario = decoded.id_usuario;
 
-    // Buscar código válido
-    const [rows] = await pool.query(`
-      SELECT id_codigo, codigo, expiracion, intentos
+    // Buscar el código exacto que ingresó el usuario. Así podemos distinguir
+    // entre código incorrecto, ya utilizado y expirado.
+    const { rows } = await pool.query(`
+      SELECT id_codigo, codigo, expiracion, intentos, usado,
+             (expiracion > NOW()) AS vigente
       FROM codigos_2fa
-      WHERE id_usuario = ? AND usado = 0 AND expiracion > NOW()
+      WHERE id_usuario = $1
+        AND codigo = $2
       ORDER BY id_codigo DESC
       LIMIT 1
-    `, [id_usuario]);
+    `, [id_usuario, codigo.trim()]);
 
     if (rows.length === 0) {
-      await registrarBitacora(req, {
-        id_usuario,
-        nombre_usuario: decoded.nombre_usuario,
-        accion: 'INICIO_SESION_2FA_FALLIDO',
-        detalle: 'Código 2FA no encontrado o expirado'
-      });
-      return res.status(400).json({
-        success: false,
-        message: 'El código de verificación ha expirado. Solicita un nuevo código.'
-      });
-    }
+      console.warn('⚠️ 2FA: código no encontrado', { id_usuario });
 
-    const dbCode = rows[0];
-
-    // Verificar si el código coincide
-    if (dbCode.codigo !== codigo.trim()) {
-      await pool.query(
-        'UPDATE codigos_2fa SET intentos = intentos + 1 WHERE id_codigo = ?',
-        [dbCode.id_codigo]
-      );
       await registrarBitacora(req, {
         id_usuario,
         nombre_usuario: decoded.nombre_usuario,
@@ -235,11 +224,52 @@ export async function verify2FA(req, res) {
       });
     }
 
+    const dbCode = rows[0];
+
+    // Se tolera usado NULL (esquemas migrados sin default)
+    const yaUsado = dbCode.usado === true || Number(dbCode.usado) === 1;
+    if (yaUsado) {
+      console.warn('⚠️ 2FA: código ya utilizado', {
+        id_usuario,
+        id_codigo: dbCode.id_codigo
+      });
+
+      await registrarBitacora(req, {
+        id_usuario,
+        nombre_usuario: decoded.nombre_usuario,
+        accion: 'INICIO_SESION_2FA_FALLIDO',
+        detalle: 'Código 2FA ya utilizado'
+      });
+      return res.status(400).json({
+        success: false,
+        message: 'Este código ya fue utilizado. Solicita un nuevo código.'
+      });
+    }
+
+    if (!dbCode.vigente) {
+      console.warn('⚠️ 2FA: código expirado', {
+        id_usuario,
+        id_codigo: dbCode.id_codigo,
+        expiracion: dbCode.expiracion
+      });
+
+      await registrarBitacora(req, {
+        id_usuario,
+        nombre_usuario: decoded.nombre_usuario,
+        accion: 'INICIO_SESION_2FA_FALLIDO',
+        detalle: 'Código 2FA expirado'
+      });
+      return res.status(400).json({
+        success: false,
+        message: 'El código de verificación ha expirado. Solicita un nuevo código.'
+      });
+    }
+
     // Marcar código como usado
-    await pool.query('UPDATE codigos_2fa SET usado = 1 WHERE id_codigo = ?', [dbCode.id_codigo]);
+    await pool.query('UPDATE codigos_2fa SET usado = TRUE WHERE id_codigo = $1', [dbCode.id_codigo]);
 
     // Obtener información completa y actualizada del usuario
-    const [userRows] = await pool.query(`
+    const { rows: userRows } = await pool.query(`
       SELECT 
         u.id_usuario, 
         u.nombre, 
@@ -255,7 +285,7 @@ export async function verify2FA(req, res) {
         r.permisos
       FROM usuarios u
       JOIN roles r ON r.id_rol = u.id_rol
-      WHERE u.id_usuario = ?
+      WHERE u.id_usuario = $1
       LIMIT 1
     `, [id_usuario]);
 
@@ -266,13 +296,13 @@ export async function verify2FA(req, res) {
     const user = userRows[0];
 
     // Doble verificación de estatus activo
-    if (user.usuario_estatus !== 1) {
+    if (Number(user.usuario_estatus) !== 1) {
       return res.status(403).json({
         success: false,
         message: 'Tu usuario ha sido desactivado.'
       });
     }
-    if (user.rol_estatus !== 1) {
+    if (Number(user.rol_estatus) !== 1) {
       return res.status(403).json({
         success: false,
         message: 'El rol de tu usuario ha sido desactivado.'
@@ -358,8 +388,8 @@ export async function resend2FA(req, res) {
       return res.status(401).json({ success: false, message: 'La sesión temporal ha expirado.' });
     }
 
-    const [users] = await pool.query(
-      'SELECT correo, nombre_usuario FROM usuarios WHERE id_usuario = ?',
+    const { rows: users } = await pool.query(
+      'SELECT correo, nombre_usuario FROM usuarios WHERE id_usuario = $1',
       [decoded.id_usuario]
     );
 
@@ -369,15 +399,21 @@ export async function resend2FA(req, res) {
 
     const user = users[0];
     const newCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiration = new Date(Date.now() + 10 * 60 * 1000);
 
     // Invalidar anteriores
-    await pool.query('UPDATE codigos_2fa SET usado = 1 WHERE id_usuario = ? AND usado = 0', [decoded.id_usuario]);
-
-    // Insertar nuevo código
     await pool.query(
-      'INSERT INTO codigos_2fa (id_usuario, codigo, expiracion) VALUES (?, ?, ?)',
-      [decoded.id_usuario, newCode, expiration]
+      `UPDATE codigos_2fa
+       SET usado = TRUE
+       WHERE id_usuario = $1
+         AND (usado = FALSE OR usado IS NULL)`,
+      [decoded.id_usuario]
+    );
+
+    // Insertar nuevo código con expiración calculada por PostgreSQL
+    await pool.query(
+      `INSERT INTO codigos_2fa (id_usuario, codigo, expiracion, usado)
+       VALUES ($1, $2, NOW() + INTERVAL '10 minutes', FALSE)`,
+      [decoded.id_usuario, newCode]
     );
 
     await send2FACode(user.correo, user.nombre_usuario, newCode);
@@ -464,12 +500,12 @@ export async function forgotPassword(req, res) {
       });
     }
 
-    const [rows] = await pool.query(`
+    const { rows } = await pool.query(`
       SELECT id_usuario, nombre_usuario, correo, estatus
       FROM usuarios
-      WHERE correo = ? OR nombre_usuario = ?
+      WHERE correo = $1 OR nombre_usuario = $1
       LIMIT 1
-    `, [correo_o_usuario.trim(), correo_o_usuario.trim()]);
+    `, [correo_o_usuario.trim()]);
 
     // Por seguridad, si el usuario no existe, enviamos un mensaje genérico para no filtrar cuentas
     if (rows.length === 0) {
@@ -481,7 +517,7 @@ export async function forgotPassword(req, res) {
 
     const user = rows[0];
 
-    if (user.estatus !== 1) {
+    if (Number(user.estatus) !== 1) {
       return res.status(403).json({
         success: false,
         message: 'Esta cuenta está inactiva. Contacta al Administrador.'
@@ -490,18 +526,21 @@ export async function forgotPassword(req, res) {
 
     // Generar token criptográficamente seguro
     const token = crypto.randomBytes(32).toString('hex');
-    const expiration = new Date(Date.now() + 60 * 60 * 1000); // 1 hora de validez
 
     // Invalidar tokens previos
     await pool.query(
-      'UPDATE tokens_recuperacion SET usado = 1 WHERE id_usuario = ? AND usado = 0',
+      `UPDATE tokens_recuperacion
+       SET usado = TRUE
+       WHERE id_usuario = $1
+         AND (usado = FALSE OR usado IS NULL)`,
       [user.id_usuario]
     );
 
     // Guardar token en tabla tokens_recuperacion
     await pool.query(
-      'INSERT INTO tokens_recuperacion (id_usuario, token, expiracion) VALUES (?, ?, ?)',
-      [user.id_usuario, token, expiration]
+      `INSERT INTO tokens_recuperacion (id_usuario, token, expiracion, usado)
+       VALUES ($1, $2, NOW() + INTERVAL '1 hour', FALSE)`,
+      [user.id_usuario, token]
     );
 
     const clientUrl = req.headers['origin'] || 'http://localhost:5173';
@@ -553,11 +592,13 @@ export async function resetPassword(req, res) {
     }
 
     // Buscar token válido
-    const [rows] = await pool.query(`
+    const { rows } = await pool.query(`
       SELECT tr.id_token, tr.id_usuario, tr.expiracion, u.nombre_usuario
       FROM tokens_recuperacion tr
       JOIN usuarios u ON u.id_usuario = tr.id_usuario
-      WHERE tr.token = ? AND tr.usado = 0 AND tr.expiracion > NOW()
+      WHERE tr.token = $1
+        AND (tr.usado = FALSE OR tr.usado IS NULL)
+        AND tr.expiracion > NOW()
       LIMIT 1
     `, [token.trim()]);
 
@@ -575,10 +616,10 @@ export async function resetPassword(req, res) {
     const hashedPassword = await bcrypt.hash(nueva_contrasena, salt);
 
     // Actualizar contraseña de usuario
-    await pool.query('UPDATE usuarios SET contrasena = ? WHERE id_usuario = ?', [hashedPassword, id_usuario]);
+    await pool.query('UPDATE usuarios SET contrasena = $1 WHERE id_usuario = $2', [hashedPassword, id_usuario]);
 
     // Marcar token como usado
-    await pool.query('UPDATE tokens_recuperacion SET usado = 1 WHERE id_token = ?', [id_token]);
+    await pool.query('UPDATE tokens_recuperacion SET usado = TRUE WHERE id_token = $1', [id_token]);
 
     // Registrar en bitácora
     await registrarBitacora(req, {
@@ -625,8 +666,8 @@ export async function changePassword(req, res) {
     }
 
     // Obtener contraseña cifrada actual del usuario
-    const [rows] = await pool.query(
-      'SELECT contrasena FROM usuarios WHERE id_usuario = ?',
+    const { rows } = await pool.query(
+      'SELECT contrasena FROM usuarios WHERE id_usuario = $1',
       [id_usuario]
     );
 
@@ -652,7 +693,7 @@ export async function changePassword(req, res) {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(nueva_contrasena, salt);
 
-    await pool.query('UPDATE usuarios SET contrasena = ? WHERE id_usuario = ?', [hashedPassword, id_usuario]);
+    await pool.query('UPDATE usuarios SET contrasena = $1 WHERE id_usuario = $2', [hashedPassword, id_usuario]);
 
     await registrarBitacora(req, {
       id_usuario,

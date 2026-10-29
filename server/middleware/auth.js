@@ -18,7 +18,7 @@ export async function verifyToken(req, res, next) {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'contapyme_super_secret_jwt_key_2026_xyz987654321');
 
     // Verificar en la base de datos si el usuario y su rol siguen activos
-    const [rows] = await pool.query(`
+    const { rows } = await pool.query(`
       SELECT 
         u.id_usuario, 
         u.nombre, 
@@ -33,7 +33,7 @@ export async function verifyToken(req, res, next) {
         r.permisos
       FROM usuarios u
       JOIN roles r ON r.id_rol = u.id_rol
-      WHERE u.id_usuario = ?
+      WHERE u.id_usuario = $1
       LIMIT 1
     `, [decoded.id_usuario]);
 
@@ -47,7 +47,7 @@ export async function verifyToken(req, res, next) {
     const user = rows[0];
 
     // Verificar estatus del usuario
-    if (user.usuario_estatus !== 1) {
+    if (Number(user.usuario_estatus) !== 1) {
       return res.status(403).json({
         success: false,
         code: 'USER_INACTIVE',
@@ -56,7 +56,7 @@ export async function verifyToken(req, res, next) {
     }
 
     // Verificar estatus del rol
-    if (user.rol_estatus !== 1) {
+    if (Number(user.rol_estatus) !== 1) {
       return res.status(403).json({
         success: false,
         code: 'ROLE_INACTIVE',

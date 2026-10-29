@@ -23,13 +23,13 @@ export async function getRoles(req, res) {
     const params = [];
 
     if (nombre && nombre.trim() !== '') {
-      query += ` WHERE r.nombre LIKE ?`;
       params.push(`%${nombre.trim()}%`);
+      query += ` WHERE r.nombre ILIKE $1`;
     }
 
     query += ` GROUP BY r.id_rol ORDER BY r.id_rol ASC`;
 
-    const [rows] = await pool.query(query, params);
+    const { rows } = await pool.query(query, params);
 
     // Formatear permisos
     const roles = rows.map(r => {
@@ -43,8 +43,10 @@ export async function getRoles(req, res) {
       }
       return {
         ...r,
+        total_usuarios: Number(r.total_usuarios),
+        usuarios_activos: Number(r.usuarios_activos),
         permisos,
-        es_predefinido: [1, 2, 3].includes(r.id_rol)
+        es_predefinido: [1, 2, 3].includes(Number(r.id_rol))
       };
     });
 
@@ -64,7 +66,7 @@ export async function getRoles(req, res) {
 export async function getRoleById(req, res) {
   try {
     const { id } = req.params;
-    const [rows] = await pool.query('SELECT * FROM roles WHERE id_rol = ?', [id]);
+    const { rows } = await pool.query('SELECT * FROM roles WHERE id_rol = $1', [id]);
 
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Rol no encontrado.' });
@@ -102,30 +104,35 @@ export async function createRole(req, res) {
     }
 
     // Verificar unicidad de nombre
-    const [exist] = await pool.query('SELECT id_rol FROM roles WHERE nombre = ?', [nombre.trim()]);
+    const { rows: exist } = await pool.query(
+      'SELECT id_rol FROM roles WHERE nombre = $1',
+      [nombre.trim()]
+    );
     if (exist.length > 0) {
       return res.status(400).json({ success: false, message: `Ya existe un rol con el nombre "${nombre}".` });
     }
 
     const jsonPermisos = JSON.stringify(Array.isArray(permisos) ? permisos : []);
 
-    const [result] = await pool.query(
-      'INSERT INTO roles (nombre, descripcion, permisos, estatus) VALUES (?, ?, ?, 1)',
+    const { rows: inserted } = await pool.query(
+      'INSERT INTO roles (nombre, descripcion, permisos, estatus) VALUES ($1, $2, $3, 1) RETURNING id_rol',
       [nombre.trim(), descripcion ? descripcion.trim() : null, jsonPermisos]
     );
+
+    const nuevoId = inserted[0].id_rol;
 
     await registrarBitacora(req, {
       id_usuario: req.user.id_usuario,
       nombre_usuario: req.user.nombre_usuario,
       accion: 'CREACION_ROL',
-      detalle: `Se creó el nuevo rol "${nombre}" (ID: ${result.insertId})`
+      detalle: `Se creó el nuevo rol "${nombre}" (ID: ${nuevoId})`
     });
 
     return res.status(201).json({
       success: true,
       message: 'Rol creado exitosamente.',
       data: {
-        id_rol: result.insertId,
+        id_rol: nuevoId,
         nombre: nombre.trim(),
         descripcion,
         permisos: Array.isArray(permisos) ? permisos : [],
@@ -151,13 +158,16 @@ export async function updateRole(req, res) {
     }
 
     // Verificar si existe el rol
-    const [rows] = await pool.query('SELECT * FROM roles WHERE id_rol = ?', [id]);
+    const { rows } = await pool.query('SELECT * FROM roles WHERE id_rol = $1', [id]);
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Rol no encontrado.' });
     }
 
     // Verificar que el nombre no esté duplicado en otro rol
-    const [dup] = await pool.query('SELECT id_rol FROM roles WHERE nombre = ? AND id_rol != ?', [nombre.trim(), id]);
+    const { rows: dup } = await pool.query(
+      'SELECT id_rol FROM roles WHERE nombre = $1 AND id_rol != $2',
+      [nombre.trim(), id]
+    );
     if (dup.length > 0) {
       return res.status(400).json({ success: false, message: `El nombre "${nombre}" ya está en uso por otro rol.` });
     }
@@ -165,7 +175,7 @@ export async function updateRole(req, res) {
     const jsonPermisos = JSON.stringify(Array.isArray(permisos) ? permisos : []);
 
     await pool.query(
-      'UPDATE roles SET nombre = ?, descripcion = ?, permisos = ? WHERE id_rol = ?',
+      'UPDATE roles SET nombre = $1, descripcion = $2, permisos = $3 WHERE id_rol = $4',
       [nombre.trim(), descripcion ? descripcion.trim() : null, jsonPermisos, id]
     );
 
@@ -205,18 +215,24 @@ export async function toggleRoleStatus(req, res) {
       });
     }
 
-    const [rows] = await pool.query('SELECT nombre FROM roles WHERE id_rol = ?', [id]);
+    const { rows } = await pool.query('SELECT nombre FROM roles WHERE id_rol = $1', [id]);
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Rol no encontrado.' });
     }
 
     const rol = rows[0];
 
-    await pool.query('UPDATE roles SET estatus = ? WHERE id_rol = ?', [newStatus, id]);
+    await pool.query(
+      'UPDATE roles SET estatus = $1 WHERE id_rol = $2',
+      [newStatus, id]
+    );
 
     // Contar cuántos usuarios se verán afectados
-    const [countRows] = await pool.query('SELECT COUNT(*) AS total FROM usuarios WHERE id_rol = ?', [id]);
-    const totalAfectados = countRows[0].total;
+    const { rows: countRows } = await pool.query(
+      'SELECT COUNT(*) AS total FROM usuarios WHERE id_rol = $1',
+      [id]
+    );
+    const totalAfectados = Number(countRows[0].total);
 
     const accionStr = newStatus === 1 ? 'ACTIVACION_ROL' : 'DESACTIVACION_ROL';
     const detalleStr = newStatus === 1
@@ -257,12 +273,15 @@ export async function assignUserRole(req, res) {
     }
 
     // Verificar que el rol destino exista y esté activo
-    const [roles] = await pool.query('SELECT nombre, estatus FROM roles WHERE id_rol = ?', [id_rol]);
+    const { rows: roles } = await pool.query(
+      'SELECT nombre, estatus FROM roles WHERE id_rol = $1',
+      [id_rol]
+    );
     if (roles.length === 0) {
       return res.status(404).json({ success: false, message: 'El rol especificado no existe.' });
     }
 
-    if (roles[0].estatus !== 1) {
+    if (Number(roles[0].estatus) !== 1) {
       return res.status(400).json({
         success: false,
         message: 'No puedes asignar un rol desactivado a un usuario.'
@@ -270,12 +289,18 @@ export async function assignUserRole(req, res) {
     }
 
     // Obtener datos del usuario
-    const [users] = await pool.query('SELECT nombre_usuario, id_rol FROM usuarios WHERE id_usuario = ?', [id_usuario]);
+    const { rows: users } = await pool.query(
+      'SELECT nombre_usuario, id_rol FROM usuarios WHERE id_usuario = $1',
+      [id_usuario]
+    );
     if (users.length === 0) {
       return res.status(404).json({ success: false, message: 'Usuario no encontrado.' });
     }
 
-    await pool.query('UPDATE usuarios SET id_rol = ? WHERE id_usuario = ?', [id_rol, id_usuario]);
+    await pool.query(
+      'UPDATE usuarios SET id_rol = $1 WHERE id_usuario = $2',
+      [id_rol, id_usuario]
+    );
 
     await registrarBitacora(req, {
       id_usuario: req.user.id_usuario,

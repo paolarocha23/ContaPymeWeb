@@ -18,7 +18,7 @@ export async function registrarBitacora(req, { id_usuario = null, nombre_usuario
 
     await pool.query(
       `INSERT INTO bitacora_accesos (id_usuario, nombre_usuario, accion, ip_origen, detalle)
-       VALUES (?, ?, ?, ?, ?)`,
+       VALUES ($1, $2, $3, $4, $5)`,
       [id_usuario, nombre_usuario, accion, ip, detalle]
     );
   } catch (err) {

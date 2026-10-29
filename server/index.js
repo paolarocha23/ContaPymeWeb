@@ -105,14 +105,22 @@ app.use((err, req, res, next) => {
 });
 
 // Inicializar esquema de base de datos y arrancar el servidor
-initializeDatabase().then(() => {
-  app.listen(PORT, () => {
-    console.log(`\n======================================================`);
-    console.log(`🚀 SERVIDOR REST API CONTAPYME INICIADO`);
-    console.log(`📍 Puerto: ${PORT}`);
-    console.log(`🌐 Base URL: http://localhost:${PORT}/api`);
-    console.log(`======================================================\n`);
+initializeDatabase()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`\n======================================================`);
+      console.log(`🚀 SERVIDOR REST API CONTAPYME INICIADO`);
+      console.log(`📍 Puerto: ${PORT}`);
+      console.log(`🌐 Base URL: http://localhost:${PORT}/api`);
+      console.log(`======================================================\n`);
+    });
+  })
+  .catch((err) => {
+    console.error(
+      '💥 No se pudo iniciar el servidor porque la base de datos no está lista:',
+      err.message
+    );
+    process.exit(1);
   });
-});
 
 export default app;

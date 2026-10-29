@@ -1,7 +1,6 @@
 import bcrypt from 'bcryptjs';
 import pool from '../config/db.js';
 import { registrarBitacora } from '../utils/bitacora.js';
-import { send2FACode } from '../config/email.js';
 
 /**
  * Consultar y buscar usuarios (sin mostrar contraseña)
@@ -17,7 +16,7 @@ export async function getUsers(req, res) {
         u.nombre,
         u.apellido_paterno,
         u.apellido_materno,
-        CONCAT(u.nombre, ' ', u.apellido_paterno, ' ', IFNULL(u.apellido_materno, '')) AS nombre_completo,
+        CONCAT_WS(' ', u.nombre, u.apellido_paterno, u.apellido_materno) AS nombre_completo,
         u.nombre_usuario,
         u.correo,
         u.id_rol,
@@ -30,35 +29,40 @@ export async function getUsers(req, res) {
       WHERE 1=1
     `;
     const params = [];
+    const addParam = (value) => {
+      params.push(value);
+      return `$${params.length}`;
+    };
 
     // Filtro por búsqueda de nombre, apellidos, nombre_usuario o correo
     if (search && search.trim() !== '') {
+      const p = addParam(`%${search.trim()}%`);
       query += ` AND (
-        u.nombre LIKE ? OR 
-        u.apellido_paterno LIKE ? OR 
-        u.apellido_materno LIKE ? OR 
-        u.nombre_usuario LIKE ? OR 
-        u.correo LIKE ?
+        u.nombre ILIKE ${p} OR 
+        u.apellido_paterno ILIKE ${p} OR 
+        u.apellido_materno ILIKE ${p} OR 
+        u.nombre_usuario ILIKE ${p} OR 
+        u.correo ILIKE ${p}
       )`;
-      const s = `%${search.trim()}%`;
-      params.push(s, s, s, s, s);
     }
 
     // Filtro por rol
     if (id_rol !== undefined && id_rol !== '') {
-      query += ` AND u.id_rol = ?`;
-      params.push(id_rol);
+      const rol = Number(id_rol);
+      if (!Number.isNaN(rol)) {
+        query += ` AND u.id_rol = ${addParam(rol)}`;
+      }
     }
 
     // Filtro por estatus
     if (estatus !== undefined && estatus !== '') {
-      query += ` AND u.estatus = ?`;
-      params.push(Number(estatus));
+      const status = Number(estatus) === 1 ? 1 : 0;
+      query += ` AND u.estatus = ${addParam(status)}`;
     }
 
     query += ` ORDER BY u.id_usuario DESC`;
 
-    const [rows] = await pool.query(query, params);
+    const { rows } = await pool.query(query, params);
 
     return res.json({
       success: true,
@@ -76,13 +80,13 @@ export async function getUsers(req, res) {
 export async function getUserById(req, res) {
   try {
     const { id } = req.params;
-    const [rows] = await pool.query(`
+    const { rows } = await pool.query(`
       SELECT 
         u.id_usuario,
         u.nombre,
         u.apellido_paterno,
         u.apellido_materno,
-        CONCAT(u.nombre, ' ', u.apellido_paterno, ' ', IFNULL(u.apellido_materno, '')) AS nombre_completo,
+        CONCAT_WS(' ', u.nombre, u.apellido_paterno, u.apellido_materno) AS nombre_completo,
         u.nombre_usuario,
         u.correo,
         u.id_rol,
@@ -92,7 +96,7 @@ export async function getUserById(req, res) {
         u.fecha_creacion
       FROM usuarios u
       JOIN roles r ON r.id_rol = u.id_rol
-      WHERE u.id_usuario = ?
+      WHERE u.id_usuario = $1
       LIMIT 1
     `, [id]);
 
@@ -132,7 +136,10 @@ export async function createUser(req, res) {
     }
 
     // Validar nombre_usuario único
-    const [userExist] = await pool.query('SELECT id_usuario FROM usuarios WHERE nombre_usuario = ?', [nombre_usuario.trim()]);
+    const { rows: userExist } = await pool.query(
+      'SELECT id_usuario FROM usuarios WHERE nombre_usuario = $1',
+      [nombre_usuario.trim()]
+    );
     if (userExist.length > 0) {
       return res.status(400).json({
         success: false,
@@ -141,7 +148,10 @@ export async function createUser(req, res) {
     }
 
     // Validar correo único
-    const [emailExist] = await pool.query('SELECT id_usuario FROM usuarios WHERE correo = ?', [correo.trim()]);
+    const { rows: emailExist } = await pool.query(
+      'SELECT id_usuario FROM usuarios WHERE correo = $1',
+      [correo.trim()]
+    );
     if (emailExist.length > 0) {
       return res.status(400).json({
         success: false,
@@ -150,11 +160,14 @@ export async function createUser(req, res) {
     }
 
     // Validar que el rol exista y esté activo
-    const [roleRows] = await pool.query('SELECT id_rol, nombre, estatus FROM roles WHERE id_rol = ?', [id_rol]);
+    const { rows: roleRows } = await pool.query(
+      'SELECT id_rol, nombre, estatus FROM roles WHERE id_rol = $1',
+      [id_rol]
+    );
     if (roleRows.length === 0) {
       return res.status(400).json({ success: false, message: 'El rol seleccionado no existe.' });
     }
-    if (roleRows[0].estatus !== 1) {
+    if (Number(roleRows[0].estatus) !== 1) {
       return res.status(400).json({
         success: false,
         message: `El rol "${roleRows[0].nombre}" se encuentra inactivo. Debes asignar un rol activo.`
@@ -166,10 +179,11 @@ export async function createUser(req, res) {
     const hashedPassword = await bcrypt.hash(contrasena, salt);
 
     // Insertar usuario con estatus inicial activo = 1
-    const [result] = await pool.query(`
+    const { rows: inserted } = await pool.query(`
       INSERT INTO usuarios 
         (nombre, apellido_paterno, apellido_materno, nombre_usuario, contrasena, correo, id_rol, estatus)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 1)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 1)
+      RETURNING id_usuario
     `, [
       nombre.trim(),
       apellido_paterno.trim(),
@@ -180,18 +194,20 @@ export async function createUser(req, res) {
       id_rol
     ]);
 
+    const nuevoId = inserted[0].id_usuario;
+
     await registrarBitacora(req, {
       id_usuario: req.user.id_usuario,
       nombre_usuario: req.user.nombre_usuario,
       accion: 'CREACION_USUARIO',
-      detalle: `Se registró al usuario "${nombre_usuario}" con rol "${roleRows[0].nombre}" (ID: ${result.insertId})`
+      detalle: `Se registró al usuario "${nombre_usuario}" con rol "${roleRows[0].nombre}" (ID: ${nuevoId})`
     });
 
     return res.status(201).json({
       success: true,
       message: 'Usuario registrado exitosamente con estatus activo.',
       data: {
-        id_usuario: result.insertId,
+        id_usuario: nuevoId,
         nombre: nombre.trim(),
         apellido_paterno: apellido_paterno.trim(),
         apellido_materno: apellido_materno ? apellido_materno.trim() : null,
@@ -228,7 +244,10 @@ export async function updateUser(req, res) {
     } = req.body;
 
     // Verificar si existe el usuario
-    const [existing] = await pool.query('SELECT * FROM usuarios WHERE id_usuario = ?', [id]);
+    const { rows: existing } = await pool.query(
+      'SELECT * FROM usuarios WHERE id_usuario = $1',
+      [id]
+    );
     if (existing.length === 0) {
       return res.status(404).json({ success: false, message: 'Usuario no encontrado.' });
     }
@@ -237,8 +256,8 @@ export async function updateUser(req, res) {
 
     // Verificar unicidad de correo si cambió
     if (correo && correo.trim() !== current.correo) {
-      const [emailDup] = await pool.query(
-        'SELECT id_usuario FROM usuarios WHERE correo = ? AND id_usuario != ?',
+      const { rows: emailDup } = await pool.query(
+        'SELECT id_usuario FROM usuarios WHERE correo = $1 AND id_usuario != $2',
         [correo.trim(), id]
       );
       if (emailDup.length > 0) {
@@ -251,11 +270,14 @@ export async function updateUser(req, res) {
 
     // Verificar rol si cambió
     if (id_rol && Number(id_rol) !== Number(current.id_rol)) {
-      const [roleCheck] = await pool.query('SELECT nombre, estatus FROM roles WHERE id_rol = ?', [id_rol]);
+      const { rows: roleCheck } = await pool.query(
+        'SELECT nombre, estatus FROM roles WHERE id_rol = $1',
+        [id_rol]
+      );
       if (roleCheck.length === 0) {
         return res.status(400).json({ success: false, message: 'El rol seleccionado no existe.' });
       }
-      if (roleCheck[0].estatus !== 1) {
+      if (Number(roleCheck[0].estatus) !== 1) {
         return res.status(400).json({
           success: false,
           message: 'No puedes asignar un rol inactivo.'
@@ -266,13 +288,17 @@ export async function updateUser(req, res) {
     // Preparar campos para actualizar
     const updates = [];
     const params = [];
+    const addParam = (value) => {
+      params.push(value);
+      return `$${params.length}`;
+    };
 
-    if (nombre) { updates.push('nombre = ?'); params.push(nombre.trim()); }
-    if (apellido_paterno) { updates.push('apellido_paterno = ?'); params.push(apellido_paterno.trim()); }
-    if (apellido_materno !== undefined) { updates.push('apellido_materno = ?'); params.push(apellido_materno ? apellido_materno.trim() : null); }
-    if (correo) { updates.push('correo = ?'); params.push(correo.trim()); }
-    if (id_rol) { updates.push('id_rol = ?'); params.push(id_rol); }
-    if (estatus !== undefined) { updates.push('estatus = ?'); params.push(Number(estatus) === 1 ? 1 : 0); }
+    if (nombre) updates.push(`nombre = ${addParam(nombre.trim())}`);
+    if (apellido_paterno) updates.push(`apellido_paterno = ${addParam(apellido_paterno.trim())}`);
+    if (apellido_materno !== undefined) updates.push(`apellido_materno = ${addParam(apellido_materno ? apellido_materno.trim() : null)}`);
+    if (correo) updates.push(`correo = ${addParam(correo.trim())}`);
+    if (id_rol) updates.push(`id_rol = ${addParam(id_rol)}`);
+    if (estatus !== undefined) updates.push(`estatus = ${addParam(Number(estatus) === 1 ? 1 : 0)}`);
 
     // Si se especificó una nueva contraseña, hashearla con bcrypt
     if (nueva_contrasena && nueva_contrasena.trim() !== '') {
@@ -284,16 +310,18 @@ export async function updateUser(req, res) {
       }
       const salt = await bcrypt.genSalt(10);
       const hash = await bcrypt.hash(nueva_contrasena, salt);
-      updates.push('contrasena = ?');
-      params.push(hash);
+      updates.push(`contrasena = ${addParam(hash)}`);
     }
 
     if (updates.length === 0) {
       return res.status(400).json({ success: false, message: 'No se enviaron datos para modificar.' });
     }
 
-    params.push(id);
-    await pool.query(`UPDATE usuarios SET ${updates.join(', ')} WHERE id_usuario = ?`, params);
+    const idParam = addParam(id);
+    await pool.query(
+      `UPDATE usuarios SET ${updates.join(', ')} WHERE id_usuario = ${idParam}`,
+      params
+    );
 
     await registrarBitacora(req, {
       id_usuario: req.user.id_usuario,
@@ -332,12 +360,18 @@ export async function toggleUserStatus(req, res) {
       });
     }
 
-    const [rows] = await pool.query('SELECT nombre_usuario FROM usuarios WHERE id_usuario = ?', [id]);
+    const { rows } = await pool.query(
+      'SELECT nombre_usuario FROM usuarios WHERE id_usuario = $1',
+      [id]
+    );
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Usuario no encontrado.' });
     }
 
-    await pool.query('UPDATE usuarios SET estatus = ? WHERE id_usuario = ?', [newStatus, id]);
+    await pool.query(
+      'UPDATE usuarios SET estatus = $1 WHERE id_usuario = $2',
+      [newStatus, id]
+    );
 
     const accion = newStatus === 1 ? 'ACTIVACION_USUARIO' : 'DESACTIVACION_USUARIO';
     const detalle = newStatus === 1
@@ -377,7 +411,10 @@ export async function adminResetPassword(req, res) {
       });
     }
 
-    const [rows] = await pool.query('SELECT nombre_usuario, correo FROM usuarios WHERE id_usuario = ?', [id]);
+    const { rows } = await pool.query(
+      'SELECT nombre_usuario, correo FROM usuarios WHERE id_usuario = $1',
+      [id]
+    );
     if (rows.length === 0) {
       return res.status(404).json({ success: false, message: 'Usuario no encontrado.' });
     }
@@ -388,10 +425,19 @@ export async function adminResetPassword(req, res) {
     const salt = await bcrypt.genSalt(10);
     const hash = await bcrypt.hash(nueva_contrasena, salt);
 
-    await pool.query('UPDATE usuarios SET contrasena = ? WHERE id_usuario = ?', [hash, id]);
+    await pool.query(
+      'UPDATE usuarios SET contrasena = $1 WHERE id_usuario = $2',
+      [hash, id]
+    );
 
     // Invalidar cualquier token de recuperación pendiente
-    await pool.query('UPDATE tokens_recuperacion SET usado = 1 WHERE id_usuario = ? AND usado = 0', [id]);
+    await pool.query(
+      `UPDATE tokens_recuperacion
+       SET usado = TRUE
+       WHERE id_usuario = $1
+         AND (usado = FALSE OR usado IS NULL)`,
+      [id]
+    );
 
     await registrarBitacora(req, {
       id_usuario: req.user.id_usuario,
