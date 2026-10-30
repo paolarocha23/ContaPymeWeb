@@ -1,10 +1,10 @@
 :root {
-  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  --font-display: 'Outfit', var(--font-sans);
+  --font-sans: 'Montserrat', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Montserrat', var(--font-sans);
   --font-mono: 'JetBrains Mono', monospace;
 
   /* Colores del Sistema (Paleta ContaPyme Oficial) */
-  --bg-app: #ebf0f7;
+  --bg-app: #f3f5fc;
   --bg-app-alt: #f1f5f9;
   --bg-sidebar: #ffffff;
   --bg-card: #ffffff;
@@ -923,61 +923,6 @@ h1, h2, h3, h4, h5, h6 {
 /* ============================================================
    LOGIN SPLIT VIEW
    ============================================================ */
-.login-split-page {
-  min-height: 100vh;
-  display: flex;
-  background-color: #ffffff;
-}
-
-.login-hero-side {
-  flex: 1 1 50%;
-  position: relative;
-  background: #020617;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.login-hero-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
-  display: block;
-}
-
-.login-hero-overlay-brand {
-  position: absolute;
-  top: 32px;
-  left: 36px;
-  z-index: 10;
-}
-
-.login-form-side {
-  flex: 1 1 50%;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 48px 60px;
-  background-color: #ffffff;
-  max-width: 640px;
-  margin: 0 auto;
-}
-
-@media (max-width: 900px) {
-  .login-split-page {
-    flex-direction: column;
-  }
-  .login-hero-side {
-    height: 240px;
-    flex: none;
-  }
-  .login-form-side {
-    padding: 32px 24px;
-    max-width: 100%;
-  }
-}
-
 /* Animaciones */
 @keyframes fadeIn {
   from { opacity: 0; }

@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import Navbar from './components/Navbar';
 import LoginView from './components/LoginView';
 import TwoFactorModal from './components/TwoFactorModal';
 import ForgotPasswordModal from './components/ForgotPasswordModal';
@@ -9,12 +8,15 @@ import UserCatalog from './components/UserCatalog';
 import RoleManagement from './components/RoleManagement';
 import BitacoraView from './components/BitacoraView';
 import InactivityModal from './components/InactivityModal';
+import Layout from './components/Layuot/Layout';
+import Dashboard from './components/Dashboard/Dashboard';
 import { useInactivityTimer } from './hooks/useInactivityTimer';
 import { api } from './services/api';
 
 export default function App() {
   const [user, setUser] = useState(() => api.getUser());
-  const [currentTab, setCurrentTab] = useState('usuarios'); // 'usuarios' | 'roles' | 'bitacora'
+  const [currentTab, setCurrentTab] = useState('usuarios');
+  const [activeView, setActiveView] = useState('dashboard');
   const [twoFactorData, setTwoFactorData] = useState(null); // { tempToken, emailMasked, devCode }
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [resetModalToken, setResetModalToken] = useState(null); // null or token string
@@ -78,8 +80,31 @@ export default function App() {
 
   const handleLoginSuccess = (authenticatedUser) => {
     setUser(authenticatedUser);
+    setActiveView('dashboard');
     setTwoFactorData(null);
     setSessionExpiredNotice('');
+  };
+
+  const handleNavigate = (view) => {
+    if (['usuarios', 'roles', 'bitacora'].includes(view)) {
+      setCurrentTab(view);
+      setActiveView('admin');
+      return;
+    }
+
+    setActiveView(view);
+  };
+
+  const firstName = user?.nombre_completo?.split(' ')[0] || user?.nombre_usuario || 'Laura';
+  const pageTitles = {
+    dashboard: `Hola, ${firstName}`,
+    admin: 'Usuarios y roles',
+    reports: 'Reportes',
+    ventas: 'Ventas',
+    compras: 'Compras',
+    inventario: 'Inventario',
+    contactos: 'Contactos',
+    finanzas: 'Finanzas',
   };
 
   return (
@@ -123,27 +148,39 @@ export default function App() {
         </>
       ) : (
         <>
-          <Navbar
+          <Layout
             user={user}
-            currentTab={currentTab}
-            onSelectTab={setCurrentTab}
+            activeView={activeView}
+            pageTitle={pageTitles[activeView] || pageTitles.dashboard}
+            subtitle={activeView === 'dashboard' ? 'Resumen de las operaciones de ContaPyme' : 'Administra tu operación desde un solo lugar'}
+            onNavigate={handleNavigate}
             onOpenChangePassword={() => setShowChangePasswordModal(true)}
             onManualLogout={handleManualLogout}
-          />
+          >
+            {activeView === 'dashboard' && <Dashboard onNavigate={handleNavigate} />}
 
-          <main style={{ flex: 1, paddingBottom: '40px' }}>
-            {currentTab === 'usuarios' && (
-              <UserCatalog currentAdminUser={user} />
+            {activeView === 'admin' && (
+              <section className="cpy-admin-view">
+                <nav className="cpy-admin-tabs" aria-label="Administración">
+                  <button className={currentTab === 'usuarios' ? 'is-active' : ''} onClick={() => setCurrentTab('usuarios')}>Usuarios</button>
+                  <button className={currentTab === 'roles' ? 'is-active' : ''} onClick={() => setCurrentTab('roles')}>Roles</button>
+                  <button className={currentTab === 'bitacora' ? 'is-active' : ''} onClick={() => setCurrentTab('bitacora')}>Bitácora</button>
+                </nav>
+                {currentTab === 'usuarios' && <UserCatalog currentAdminUser={user} />}
+                {currentTab === 'roles' && <RoleManagement />}
+                {currentTab === 'bitacora' && <BitacoraView />}
+              </section>
             )}
 
-            {currentTab === 'roles' && (
-              <RoleManagement />
+            {activeView !== 'dashboard' && activeView !== 'admin' && (
+              <section className="cpy-module-placeholder">
+                <span className="cpy-module-kicker">CONTAPYME</span>
+                <h2>{pageTitles[activeView] || 'Módulo'}</h2>
+                <p>Este espacio está listo para integrar las funciones de este módulo.</p>
+                <button type="button" onClick={() => setActiveView('dashboard')}>Volver al dashboard</button>
+              </section>
             )}
-
-            {currentTab === 'bitacora' && (
-              <BitacoraView />
-            )}
-          </main>
+          </Layout>
 
           {showChangePasswordModal && (
             <ChangePasswordModal

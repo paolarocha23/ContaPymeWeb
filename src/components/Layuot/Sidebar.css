@@ -1,0 +1,187 @@
+.cpy-sidebar {
+  position: relative;
+  z-index: 11;
+  display: flex;
+  width: 64px;
+  min-width: 64px;
+  align-self: stretch;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px;
+  border-radius: 32px;
+  background: #fff;
+  box-shadow: 0 8px 20px -14px rgba(15, 27, 77, 0.3);
+}
+
+.cpy-sidebar-items {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.cpy-sidebar-spacer {
+  flex: 1;
+}
+
+.cpy-sidebar-button {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #6b7280;
+  cursor: pointer;
+  transition: color 150ms ease, background 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.cpy-sidebar-button:hover,
+.cpy-sidebar-button.is-open {
+  background: linear-gradient(135deg, #2a44c9, #142a95 60%, #0b1c66);
+  box-shadow: 0 10px 18px -8px rgba(20, 42, 149, 0.7);
+  color: #fff;
+}
+
+.cpy-sidebar-button.is-active {
+  background: linear-gradient(135deg, #2a44c9, #0b1c66);
+  box-shadow: 0 10px 18px -8px rgba(20, 42, 149, 0.7);
+  color: #fff;
+}
+
+.cpy-sidebar-button:focus-visible,
+.cpy-flyout-option:focus-visible {
+  outline: 3px solid rgba(42, 68, 201, 0.35);
+  outline-offset: 2px;
+}
+
+.cpy-content-overlay {
+  position: absolute;
+  z-index: 9;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 88px;
+  border: 0;
+  border-radius: 24px;
+  background: rgba(9, 22, 82, 0.38);
+  cursor: default;
+}
+
+.cpy-flyout {
+  position: fixed;
+  z-index: 10;
+  left: 116px;
+  width: 272px;
+  padding: 16px 12px 12px;
+  border: 0;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 30px 60px -20px rgba(15, 27, 77, 0.4), 0 0 0 1px #e4e8f5;
+}
+
+.cpy-flyout h2 {
+  padding: 0 10px 10px;
+  color: #142a95;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.cpy-flyout-option {
+  display: flex;
+  width: 100%;
+  min-height: 52px;
+  align-items: center;
+  gap: 12px;
+  margin-top: 2px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: #0f1b4d;
+  text-align: left;
+  cursor: pointer;
+  transition: 150ms ease;
+}
+
+.cpy-flyout-icon {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  border-radius: 11px;
+  background: #e8ecfb;
+  color: #142a95;
+  transition: 150ms ease;
+}
+
+.cpy-flyout-label {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cpy-flyout-badge {
+  display: inline-flex;
+  min-width: 22px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 7px;
+  border-radius: 10px;
+  background: #c2362f;
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+
+.cpy-flyout-option:hover,
+.cpy-flyout-option:focus-visible,
+.cpy-flyout-option.is-selected {
+  background: linear-gradient(135deg, #2a44c9, #142a95 60%, #0b1c66);
+  box-shadow: 0 12px 20px -12px rgba(20, 42, 149, 0.7);
+  color: #fff;
+}
+
+.cpy-flyout-option:hover .cpy-flyout-icon,
+.cpy-flyout-option:focus-visible .cpy-flyout-icon,
+.cpy-flyout-option.is-selected .cpy-flyout-icon {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+
+@media (max-height: 560px) {
+  .cpy-sidebar {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .cpy-sidebar-items {
+    gap: 4px;
+  }
+}
+
+@media (max-width: 760px) {
+  .cpy-sidebar {
+    width: 54px;
+    min-width: 54px;
+    padding: 10px 5px;
+  }
+
+  .cpy-sidebar-button {
+    width: 42px;
+    height: 42px;
+    flex-basis: 42px;
+  }
+
+  .cpy-flyout {
+    width: min(272px, calc(100vw - 80px));
+  }
+}
