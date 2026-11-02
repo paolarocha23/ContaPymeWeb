@@ -8,21 +8,13 @@ import './Sidebar.css';
 
 const navigation = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'ventas', label: 'Ventas', icon: ShoppingCart, submenu: [
-    { label: 'Nueva venta', icon: Plus },
-    { label: 'Historial de ventas', icon: ShoppingCart },
-    { label: 'Devoluciones', icon: Undo2 },
-  ] },
-  { id: 'compras', label: 'Compras', icon: ShoppingBag, submenu: [
-    { label: 'Nueva compra', icon: Plus },
-    { label: 'Historial de compras', icon: ShoppingBag },
-    { label: 'Devoluciones', icon: Undo2 },
-  ] },
+  { id: 'ventas', label: 'Ventas', icon: ShoppingCart},
+  { id: 'compras', label: 'Compras', icon: ShoppingBag},
+  
   { id: 'inventario', label: 'Inventario', icon: Warehouse, submenu: [
-    { label: 'Productos', icon: Package },
+    { label: 'Productos y Servicios', icon: Package },
     { label: 'Categorías', icon: Tags },
-    { label: 'Existencias', icon: Boxes },
-    { label: 'Movimientos', icon: History },
+    { label: 'Inventario', icon: Boxes },
   ] },
   { id: 'contactos', label: 'Contactos', icon: ContactRound, submenu: [
     { label: 'Clientes', icon: Users },

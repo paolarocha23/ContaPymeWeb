@@ -198,6 +198,63 @@ export const api = {
     });
   },
 
+  // Clientes
+  getClients(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.q || filters.search) params.append('q', filters.q || filters.search);
+    if (filters.estatus) params.append('estatus', filters.estatus);
+    if (filters.ciudad) params.append('ciudad', filters.ciudad);
+    if (filters.estado) params.append('estado', filters.estado);
+    if (filters.colonia) params.append('colonia', filters.colonia);
+    if (filters.adeudo) params.append('adeudo', filters.adeudo);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/clientes${qs}`);
+  },
+
+  getClientById(id) {
+    return this.request(`/clientes/${encodeURIComponent(id)}`);
+  },
+
+  getClientHistory(id) {
+    return this.request(`/clientes/${encodeURIComponent(id)}/historial`);
+  },
+
+  getClientStats() {
+    return this.request('/clientes/stats');
+  },
+
+  createClient(clientData) {
+    return this.request('/clientes', {
+      method: 'POST',
+      body: JSON.stringify(clientData)
+    });
+  },
+
+  updateClient(id, clientData) {
+    return this.request(`/clientes/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(clientData)
+    });
+  },
+
+  toggleClientStatus(id, estatusOrActivo) {
+    const payload = typeof estatusOrActivo === 'object'
+      ? estatusOrActivo
+      : typeof estatusOrActivo === 'boolean'
+        ? { activo: estatusOrActivo }
+        : { estatus: estatusOrActivo };
+
+    return this.request(`/clientes/${encodeURIComponent(id)}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload)
+    });
+  },
+
+    getClientOptions() {
+    return this.request('/clientes/opciones');
+  },
+  
+
   // Bitácora
   getBitacora(params = {}) {
     const qs = new URLSearchParams(params).toString();

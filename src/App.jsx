@@ -8,6 +8,7 @@ import UserCatalog from './components/UserCatalog';
 import RoleManagement from './components/RoleManagement';
 import BitacoraView from './components/BitacoraView';
 import InactivityModal from './components/InactivityModal';
+import ClientesView from './components/Clientes/ClientesView';
 import Layout from './components/Layuot/Layout';
 import Dashboard from './components/Dashboard/Dashboard';
 import { useInactivityTimer } from './hooks/useInactivityTimer';
@@ -96,6 +97,7 @@ export default function App() {
   };
 
   const firstName = user?.nombre_completo?.split(' ')[0] || user?.nombre_usuario || 'Laura';
+
   const pageTitles = {
     dashboard: `Hola, ${firstName}`,
     admin: 'Usuarios y roles',
@@ -104,8 +106,19 @@ export default function App() {
     compras: 'Compras',
     inventario: 'Inventario',
     contactos: 'Contactos',
+    clientes: 'Contactos',
     finanzas: 'Finanzas',
   };
+
+  const subtitles = {
+    dashboard: 'Resumen de las operaciones de ContaPyme',
+    clientes: 'Catálogo de clientes',
+    contactos: 'Catálogo de clientes',
+  };
+
+  // Vistas que ya tienen pantalla propia (el resto muestra el placeholder)
+  const isClientes = activeView === 'clientes' || activeView === 'contactos';
+  const hasOwnView = activeView === 'dashboard' || activeView === 'admin' || isClientes;
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -152,7 +165,7 @@ export default function App() {
             user={user}
             activeView={activeView}
             pageTitle={pageTitles[activeView] || pageTitles.dashboard}
-            subtitle={activeView === 'dashboard' ? 'Resumen de las operaciones de ContaPyme' : 'Administra tu operación desde un solo lugar'}
+            subtitle={subtitles[activeView] || 'Administra tu operación desde un solo lugar'}
             onNavigate={handleNavigate}
             onOpenChangePassword={() => setShowChangePasswordModal(true)}
             onManualLogout={handleManualLogout}
@@ -172,7 +185,9 @@ export default function App() {
               </section>
             )}
 
-            {activeView !== 'dashboard' && activeView !== 'admin' && (
+            {isClientes && <ClientesView />}
+
+            {!hasOwnView && (
               <section className="cpy-module-placeholder">
                 <span className="cpy-module-kicker">CONTAPYME</span>
                 <h2>{pageTitles[activeView] || 'Módulo'}</h2>

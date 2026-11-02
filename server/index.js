@@ -5,6 +5,7 @@ import authRoutes from './routes/authRoutes.js';
 import roleRoutes from './routes/roleRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import bitacoraRoutes from './routes/bitacoraRoutes.js';
+import clienteRoutes from './routes/clienteRoutes.js';
 import { initializeDatabase } from './config/init_db.js';
 
 dotenv.config();
@@ -70,6 +71,17 @@ app.get('/api', (req, res) => {
         toggleStatus: 'PATCH /api/users/:id/status',
         adminResetPassword: 'POST /api/users/:id/reset-password-admin'
       },
+      clientes: {
+        list: 'GET /api/clientes (?q=...&estatus=...&ciudad=...&estado=...&colonia=...&adeudo=...)',
+        stats: 'GET /api/clientes/stats',
+        get: 'GET /api/clientes/:id (acepta C-0001 o ID numérico)',
+        historial: 'GET /api/clientes/:id/historial',
+        create: 'POST /api/clientes',
+        update: 'PUT /api/clientes/:id',
+        toggleStatus: 'PATCH /api/clientes/:id/status',
+        /**delete: 'DELETE /api/clientes/:id'**/
+        opciones: 'GET /api/clientes/opciones',
+      },
       bitacora: {
         list: 'GET /api/bitacora (?accion=...&nombre_usuario=...&limit=50&offset=0)'
       }
@@ -81,6 +93,8 @@ app.get('/api', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/clientes', clienteRoutes);
+app.use('/api/clients', clienteRoutes); // Alias en inglés
 app.use('/api/bitacora', bitacoraRoutes);
 
 // Manejador de rutas no encontradas 404 para la API
@@ -109,15 +123,15 @@ initializeDatabase()
   .then(() => {
     app.listen(PORT, () => {
       console.log(`\n======================================================`);
-      console.log(`🚀 SERVIDOR REST API CONTAPYME INICIADO`);
-      console.log(`📍 Puerto: ${PORT}`);
-      console.log(`🌐 Base URL: http://localhost:${PORT}/api`);
+      console.log(`SERVIDOR REST API CONTAPYME INICIADO`);
+      console.log(`Puerto: ${PORT}`);
+      console.log(`Base URL: http://localhost:${PORT}/api`);
       console.log(`======================================================\n`);
     });
   })
   .catch((err) => {
     console.error(
-      '💥 No se pudo iniciar el servidor porque la base de datos no está lista:',
+      'No se pudo iniciar el servidor porque la base de datos no está lista:',
       err.message
     );
     process.exit(1);

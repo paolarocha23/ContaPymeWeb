@@ -48,8 +48,8 @@ export async function send2FACode(email, username, code) {
   `;
 
   console.log(`\n======================================================`);
-  console.log(`📧 [CORREO 2FA] Enviando a: ${email} (${username})`);
-  console.log(`🔑 CÓDIGO DE VERIFICACIÓN 2FA: [ ${code} ]`);
+  console.log(`[CORREO 2FA] Enviando a: ${email} (${username})`);
+  console.log(`CÓDIGO DE VERIFICACIÓN 2FA: [ ${code} ]`);
   console.log(`======================================================\n`);
 
   // Si no hay configuración SMTP, usar fallback de consola (para desarrollo)
@@ -65,7 +65,7 @@ export async function send2FACode(email, username, code) {
       subject,
       html
     });
-    console.log(`✅ Correo 2FA enviado vía SMTP a ${email}`);
+    console.log(`Correo 2FA enviado vía SMTP a ${email}`);
     return { sent: true, mode: 'smtp' };
   } catch (err) {
     console.warn(`❌ Falló envío SMTP 2FA (${err.message}); usando fallback de consola`);

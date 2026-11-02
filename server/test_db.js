@@ -29,7 +29,7 @@ async function testConnection() {
              current_user AS usuario,
              version() AS version
     `);
-    console.log(`✅ Conexión exitosa`);
+    console.log(`Conexión exitosa`);
     console.log(`   Base de datos: ${info[0].base_datos}`);
     console.log(`   Usuario:       ${info[0].usuario}`);
     console.log(`   Versión:       ${info[0].version.split(',')[0]}`);
@@ -42,7 +42,7 @@ async function testConnection() {
       ORDER BY table_name
     `);
 
-    console.log(`\n📋 Tablas encontradas en public (${tablas.length}):`);
+    console.log(`\nTablas encontradas en public (${tablas.length}):`);
     for (const t of tablas) {
       console.log(`   - ${t.table_name}`);
     }
@@ -52,10 +52,10 @@ async function testConnection() {
     const faltantes = requeridas.filter((t) => !existentes.includes(t));
 
     if (faltantes.length > 0) {
-      console.log(`\n⚠️ Tablas requeridas faltantes: ${faltantes.join(', ')}`);
+      console.log(`\nTablas requeridas faltantes: ${faltantes.join(', ')}`);
       console.log('   Se crearán automáticamente al iniciar el servidor (init_db.js).');
     } else {
-      console.log('\n✅ Todas las tablas requeridas existen.');
+      console.log('\nTodas las tablas requeridas existen.');
     }
 
     const { rows: usuarios } = await pool.query(

@@ -340,7 +340,12 @@ async function sincronizarSecuencias() {
     ['usuarios', 'id_usuario'],
     ['codigos_2fa', 'id_codigo'],
     ['tokens_recuperacion', 'id_token'],
-    ['bitacora_accesos', 'id_bitacora']
+    ['bitacora_accesos', 'id_bitacora'],
+    ['clientes', 'id_cliente'],
+    ['productos', 'id_producto'],
+    ['ventas', 'id_venta'],
+    ['cuentas_por_cobrar', 'id_cxc'],
+    ['cxc_cobros', 'id_cobro']
   ];
 
   for (const [tabla, columna] of tablas) {
@@ -370,6 +375,149 @@ async function sincronizarSecuencias() {
 }
 
 /**
+ * Sembrar catálogo inicial de clientes y transacciones de ejemplo si la tabla está vacía
+ */
+async function seedClientesIniciales() {
+  try {
+    const { rows: countRows } = await pool.query('SELECT COUNT(*)::int AS total FROM public.clientes');
+    if (countRows[0]?.total > 0) return;
+
+    console.log('🌱 Poblando catálogo inicial de clientes demo...');
+    const clientesDemo = [
+      { nombre: 'Roberto', apellidoPaterno: 'Salazar', apellidoMaterno: 'Núñez', telefono: '4772145530', correo: 'roberto.salazar@gmail.com', calle: 'Blvd. Adolfo López Mateos', numExterior: '1520', colonia: 'Jardines del Moral', cp: '37160', ciudad: 'León', estado: 'Guanajuato', estatus: 1, fecha: '2026-02-14' },
+      { nombre: 'María Fernanda', apellidoPaterno: 'Ortega', apellidoMaterno: 'Ruiz', telefono: '4727231806', correo: 'mf.ortega@outlook.com', calle: 'Av. Hidalgo', numExterior: '210', colonia: 'Centro', cp: '36100', ciudad: 'Silao', estado: 'Guanajuato', estatus: 1, fecha: '2026-03-02' },
+      { nombre: 'Comercializadora', apellidoPaterno: 'Bajío', apellidoMaterno: '', telefono: '4777102341', correo: 'compras@cbajio.mx', calle: 'Blvd. Torres Landa', numExterior: '3400', colonia: 'Valle del Campestre', cp: '37150', ciudad: 'León', estado: 'Guanajuato', estatus: 1, fecha: '2026-03-18' },
+      { nombre: 'Ricardo', apellidoPaterno: 'Aguilar', apellidoMaterno: 'Torres', telefono: '4626247712', correo: 'ricardo.aguilar@gmail.com', calle: 'Calle Juárez', numExterior: '45', colonia: 'Centro', cp: '36500', ciudad: 'Irapuato', estado: 'Guanajuato', estatus: 1, fecha: '2026-04-05' },
+      { nombre: 'Daniela', apellidoPaterno: 'Cervantes', apellidoMaterno: 'Mora', telefono: '3336158094', correo: 'dani.cervantes@gmail.com', calle: 'Av. Chapultepec', numExterior: '812', colonia: 'Americana', cp: '44160', ciudad: 'Guadalajara', estado: 'Jalisco', estatus: 1, fecha: '2026-04-21' },
+      { nombre: 'Héctor', apellidoPaterno: 'Villanueva', apellidoMaterno: 'Prado', telefono: '4422183665', correo: 'hvillanueva@hotmail.com', calle: 'Av. Zaragoza', numExterior: '98', colonia: 'Centro', cp: '76000', ciudad: 'Querétaro', estado: 'Querétaro', estatus: 0, fecha: '2026-05-09' },
+      { nombre: 'Sofía', apellidoPaterno: 'Ramírez', apellidoMaterno: 'Lara', telefono: '4499124027', correo: 'sofia.ramirez@gmail.com', calle: 'Av. Universidad', numExterior: '700', colonia: 'Villas de la Universidad', cp: '20100', ciudad: 'Aguascalientes', estado: 'Aguascalientes', estatus: 1, fecha: '2026-05-27' },
+      { nombre: 'Iván', apellidoPaterno: 'Castillo', apellidoMaterno: 'Medina', telefono: '4767440958', correo: 'ivan.castillo@outlook.com', calle: 'Calle Morelos', numExterior: '15', colonia: 'Centro', cp: '36300', ciudad: 'San Francisco del Rincón', estado: 'Guanajuato', estatus: 0, fecha: '2026-06-12' },
+      { nombre: 'Luisa', apellidoPaterno: 'Martínez', apellidoMaterno: 'Vega', telefono: '4771235500', correo: 'luisa.martinez@gmail.com', calle: 'Calle Allende', numExterior: '330', colonia: 'San Miguel', cp: '37000', ciudad: 'León', estado: 'Guanajuato', estatus: 1, fecha: '2026-06-30' },
+      { nombre: 'Paola', apellidoPaterno: 'Rocha', apellidoMaterno: 'Gómez', telefono: '4776540011', correo: 'paola.rocha@gmail.com', calle: 'Av. Las Torres', numExterior: '1200', colonia: 'Las Torres', cp: '37200', ciudad: 'León', estado: 'Guanajuato', estatus: 1, fecha: '2026-07-15' },
+      { nombre: 'Guadalupe', apellidoPaterno: 'Lozano', apellidoMaterno: 'Díaz', telefono: '4728890022', correo: 'lupe.lozano@outlook.com', calle: 'Calle Reforma', numExterior: '60', colonia: 'Centro', cp: '36100', ciudad: 'Silao', estado: 'Guanajuato', estatus: 1, fecha: '2026-08-04' }
+    ];
+
+    const idsInsertados = [];
+    for (const c of clientesDemo) {
+      const { rows } = await pool.query(`
+        INSERT INTO public.clientes (
+          nombre_cliente, apellido_paterno, apellido_materno,
+          calle, num_exterior, colonia, codigo_postal, ciudad, estado,
+          telefono, correo, estatus, fecha_registro
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::timestamp)
+        RETURNING id_cliente
+      `, [
+        c.nombre, c.apellidoPaterno, c.apellidoMaterno || null,
+        c.calle, c.numExterior, c.colonia, c.cp, c.ciudad, c.estado,
+        c.telefono, c.correo, c.estatus, c.fecha
+      ]);
+      idsInsertados.push(rows[0].id_cliente);
+    }
+    console.log(`✅ ${idsInsertados.length} clientes demo insertados.`);
+
+    // Crear un producto demo base si la tabla productos está vacía
+    let idProductoDemo = null;
+    const { rows: prods } = await pool.query('SELECT id_producto FROM public.productos LIMIT 1');
+    if (prods.length > 0) {
+      idProductoDemo = prods[0].id_producto;
+    } else {
+      const { rows: nuevoProd } = await pool.query(`
+        INSERT INTO public.productos (codigo, nombre, descripcion, tipo, precio_compra, precio_venta, stock, stock_minimo, estatus)
+        VALUES ('PROD-001', 'Laptop Lenovo IdeaPad 3 15"', 'Equipo portátil de cómputo', 'PRODUCTO', 12000, 18450, 15, 2, 1)
+        RETURNING id_producto
+      `);
+      idProductoDemo = nuevoProd[0].id_producto;
+    }
+
+    // Obtener id de usuario administrador para asociar ventas
+    const { rows: adminUser } = await pool.query('SELECT id_usuario FROM public.usuarios LIMIT 1');
+    const idUsuario = adminUser[0]?.id_usuario || null;
+
+    // Poblar historial demo para Roberto Salazar (primer cliente insertado)
+    const idRoberto = idsInsertados[0];
+    if (idRoberto && idUsuario) {
+      const ventasRoberto = [
+        { codigo: 'V-1042', fecha: '2026-10-12', producto: 'Laptop Lenovo IdeaPad 3 15"', total: 18450, cobrado: 10000, estatus: 'Parcial' },
+        { codigo: 'V-1031', fecha: '2026-10-03', producto: 'Monitor Samsung 24" Full HD', total: 6980, cobrado: 6980, estatus: 'Pagada' },
+        { codigo: 'V-1017', fecha: '2026-09-21', producto: 'Impresora Epson EcoTank L3250', total: 12300, cobrado: 12300, estatus: 'Pagada' },
+        { codigo: 'V-0998', fecha: '2026-09-09', producto: 'Disco SSD Kingston 1 TB', total: 3250, cobrado: 3250, estatus: 'Pagada' },
+        { codigo: 'V-0975', fecha: '2026-08-28', producto: 'Tablet Samsung Galaxy Tab A9', total: 9870, cobrado: 9870, estatus: 'Pagada' },
+        { codigo: 'V-0952', fecha: '2026-08-14', producto: 'Laptop HP 14" Ryzen 5', total: 22500, cobrado: 22500, estatus: 'Pagada' }
+      ];
+
+      for (const v of ventasRoberto) {
+        const { rows: vRow } = await pool.query(`
+          INSERT INTO public.ventas (
+            codigo, fecha, id_cliente, id_usuario, forma_pago, total, monto_pagado, estatus
+          ) VALUES ($1, $2::timestamp, $3, $4, 'Transferencia', $5, $6, $7)
+          RETURNING id_venta
+        `, [v.codigo, v.fecha, idRoberto, idUsuario, v.total, v.cobrado, v.estatus]);
+
+        const idVenta = vRow[0].id_venta;
+
+        // Registrar detalle de venta
+        if (idProductoDemo) {
+          await pool.query(`
+            INSERT INTO public.detalle_ventas (id_venta, id_producto, cantidad, precio_unitario, subtotal)
+            VALUES ($1, $2, 1, $3, $3)
+          `, [idVenta, idProductoDemo, v.total]);
+        }
+
+        // Si tiene saldo pendiente o cobros, registrar en cuentas_por_cobrar
+        const saldo = v.total - v.cobrado;
+        const { rows: cxcRow } = await pool.query(`
+          INSERT INTO public.cuentas_por_cobrar (
+            id_cliente, id_venta, fecha_emision, fecha_vencimiento, monto_original, saldo_pendiente, estatus
+          ) VALUES ($1, $2, $3::date, ($3::date + 30), $4, $5, $6)
+          RETURNING id_cxc
+        `, [idRoberto, idVenta, v.fecha, v.total, saldo, v.estatus]);
+
+        const idCxc = cxcRow[0].id_cxc;
+
+        // Si tuvo abonos/cobros, registrar en cxc_cobros
+        if (v.cobrado > 0) {
+          await pool.query(`
+            INSERT INTO public.cxc_cobros (id_cxc, fecha, monto, forma_pago, id_usuario, observaciones)
+            VALUES ($1, $2::timestamp, $3, 'Transferencia', $4, 'Cobro registrado en venta')
+          `, [idCxc, v.fecha, v.cobrado, idUsuario]);
+        }
+      }
+
+      // Saldos pendientes para otros clientes demo (Comercializadora, Sofía, Luisa, Paola, Guadalupe)
+      const saldosOtros = [
+        { index: 2, monto: 15480, codigo: 'V-1020' }, // Comercializadora Bajío
+        { index: 6, monto: 4888, codigo: 'V-1015' },  // Sofía Ramírez
+        { index: 8, monto: 12400, codigo: 'V-1011' }, // Luisa Martínez
+        { index: 9, monto: 9900, codigo: 'V-1008' },  // Paola Rocha
+        { index: 10, monto: 6200, codigo: 'V-1004' }  // Guadalupe Lozano
+      ];
+
+      for (const item of saldosOtros) {
+        const idCli = idsInsertados[item.index];
+        if (!idCli) continue;
+
+        const { rows: vRow } = await pool.query(`
+          INSERT INTO public.ventas (
+            codigo, fecha, id_cliente, id_usuario, forma_pago, total, monto_pagado, estatus
+          ) VALUES ($1, CURRENT_TIMESTAMP, $2, $3, 'Crédito', $4, 0, 'Pendiente')
+          RETURNING id_venta
+        `, [item.codigo, idCli, idUsuario, item.monto]);
+
+        await pool.query(`
+          INSERT INTO public.cuentas_por_cobrar (
+            id_cliente, id_venta, fecha_emision, fecha_vencimiento, monto_original, saldo_pendiente, estatus
+          ) VALUES ($1, $2, CURRENT_DATE, (CURRENT_DATE + 30), $3, $3, 'Pendiente')
+        `, [idCli, vRow[0].id_venta, item.monto]);
+      }
+
+      console.log('✅ Historial de ventas y cobros demo inicializado.');
+    }
+  } catch (err) {
+    console.warn('   ⚠️ No se pudieron insertar los datos iniciales de clientes:', err.message);
+  }
+}
+
+/**
  * Verifica y prepara el esquema de la base de datos en Supabase/PostgreSQL.
  */
 export async function initializeDatabase() {
@@ -381,12 +529,12 @@ export async function initializeDatabase() {
       `SELECT table_name
        FROM information_schema.tables
        WHERE table_schema = $1
-         AND table_name IN ('roles', 'usuarios')`,
+         AND table_name IN ('roles', 'usuarios', 'clientes')`,
       [ESQUEMA]
     );
 
     const existentes = tablasBase.map((r) => r.table_name);
-    for (const requerida of ['roles', 'usuarios']) {
+    for (const requerida of ['roles', 'usuarios', 'clientes']) {
       if (!existentes.includes(requerida)) {
         throw new Error(
           `No existe la tabla public.${requerida} en Supabase. Créala antes de iniciar el servidor.`
@@ -404,11 +552,17 @@ export async function initializeDatabase() {
     await asegurarIdentidad('codigos_2fa', 'id_codigo');
     await asegurarIdentidad('tokens_recuperacion', 'id_token');
     await asegurarIdentidad('bitacora_accesos', 'id_bitacora');
+    await asegurarIdentidad('clientes', 'id_cliente');
+    await asegurarIdentidad('productos', 'id_producto');
+    await asegurarIdentidad('ventas', 'id_venta');
+    await asegurarIdentidad('cuentas_por_cobrar', 'id_cxc');
+    await asegurarIdentidad('cxc_cobros', 'id_cobro');
 
     // 4. Normalizar tipos de datos para que el código use un único contrato
     await normalizarPermisos();
     await normalizarEstatus('roles');
     await normalizarEstatus('usuarios');
+    await normalizarEstatus('clientes');
     await normalizarUsado('codigos_2fa');
     await normalizarUsado('tokens_recuperacion');
     await normalizarExpiracion('codigos_2fa');
@@ -416,7 +570,17 @@ export async function initializeDatabase() {
     await normalizarIntentos2FA();
     await normalizarCodigo2FA();
 
-    // 5. Asignar permisos predeterminados
+    // 5. Índices para clientes
+    try {
+      await pool.query('CREATE INDEX IF NOT EXISTS idx_clientes_nombre ON public.clientes (nombre_cliente, apellido_paterno)');
+      await pool.query('CREATE INDEX IF NOT EXISTS idx_clientes_telefono ON public.clientes (telefono)');
+      await pool.query('CREATE INDEX IF NOT EXISTS idx_clientes_correo ON public.clientes (correo)');
+      await pool.query('CREATE INDEX IF NOT EXISTS idx_clientes_estatus ON public.clientes (estatus)');
+    } catch (idxErr) {
+      console.warn('   ⚠️ Error al verificar índices de clientes:', idxErr.message);
+    }
+
+    // 6. Asignar permisos predeterminados
     const permisosPorRol = [
       {
         nombre: 'Administrador',
@@ -458,7 +622,7 @@ export async function initializeDatabase() {
       );
     }
 
-    // 6. Buscar al usuario administrador inicial
+    // 7. Buscar al usuario administrador inicial
     const { rows: adminRows } = await pool.query(`
       SELECT id_usuario, contrasena
       FROM public.usuarios
@@ -476,35 +640,27 @@ export async function initializeDatabase() {
         currentHash === '$2b$12$PLACEHOLDER_HASH_CHANGE_ME' ||
         !/^\$2[aby]\$\d{2}\$/.test(currentHash)
       ) {
-        console.log(
-          'Generando hash bcrypt para el administrador inicial...'
-        );
-
+        console.log('Generando hash bcrypt para el administrador inicial...');
         const hashedPassword = await bcrypt.hash('Admin1234!', 10);
-
         await pool.query(`
           UPDATE public.usuarios
           SET contrasena = $1
           WHERE id_usuario = $2
         `, [hashedPassword, adminUser.id_usuario]);
-
-        console.log(
-          'Contraseña inicial del administrador actualizada.'
-        );
+        console.log('Contraseña inicial del administrador actualizada.');
       }
     }
 
-    // 7. Sincronizar secuencias con los datos existentes
+    // 8. Sembrar clientes demo si la tabla está vacía
+    await seedClientesIniciales();
+
+    // 9. Sincronizar secuencias con los datos existentes
     await sincronizarSecuencias();
 
     console.log('✅ Esquema de base de datos PostgreSQL verificado y listo.');
 
   } catch (err) {
-    console.error(
-      '❌ Error al inicializar esquema de base de datos:',
-      err.message
-    );
-
+    console.error('❌ Error al inicializar esquema de base de datos:', err.message);
     throw err;
   }
 }

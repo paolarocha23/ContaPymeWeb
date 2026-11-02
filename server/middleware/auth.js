@@ -115,3 +115,32 @@ export function requireAdmin(req, res, next) {
   }
   next();
 }
+
+/**
+ * Middleware para validar que el usuario tenga un permiso específico
+ * Los usuarios con rol Administrador tienen acceso total.
+ */
+export function requirePermission(permiso) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'No autenticado'
+      });
+    }
+
+    if (req.user.rol_nombre === 'Administrador') {
+      return next();
+    }
+
+    const permisos = Array.isArray(req.user.permisos) ? req.user.permisos : [];
+    if (permisos.includes(permiso)) {
+      return next();
+    }
+
+    return res.status(403).json({
+      success: false,
+      message: `Acceso denegado: se requiere el permiso '${permiso}'`
+    });
+  };
+}
