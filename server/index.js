@@ -6,6 +6,7 @@ import roleRoutes from './routes/roleRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import bitacoraRoutes from './routes/bitacoraRoutes.js';
 import clienteRoutes from './routes/clienteRoutes.js';
+import cuentasPorPagarRoutes from './routes/cuentasPorPagarRoutes.js';
 import { initializeDatabase } from './config/init_db.js';
 
 dotenv.config();
@@ -84,6 +85,12 @@ app.get('/api', (req, res) => {
       },
       bitacora: {
         list: 'GET /api/bitacora (?accion=...&nombre_usuario=...&limit=50&offset=0)'
+      },
+      cuentasPorPagar: {
+        list: 'GET /api/cxp',
+        resumen: 'GET /api/cxp/resumen',
+        get: 'GET /api/cxp/:id',
+        pagos: 'GET /api/cxp/:id/pagos'
       }
     }
   });
@@ -96,6 +103,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/clientes', clienteRoutes);
 app.use('/api/clients', clienteRoutes); // Alias en inglés
 app.use('/api/bitacora', bitacoraRoutes);
+app.use('/api/cxp', cuentasPorPagarRoutes);
 
 // Manejador de rutas no encontradas 404 para la API
 app.use((req, res, next) => {

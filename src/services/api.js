@@ -259,5 +259,35 @@ export const api = {
   getBitacora(params = {}) {
     const qs = new URLSearchParams(params).toString();
     return this.request(`/bitacora${qs ? `?${qs}` : ''}`);
+  },
+
+
+  // Cuentas por Pagar
+  getCuentasPorPagar(filtros = {}) {
+    const params = new URLSearchParams();
+
+    if (filtros.estatus) {
+      params.append('estatus', filtros.estatus);
+    }
+
+    if (filtros.busqueda) {
+      params.append('busqueda', filtros.busqueda);
+    }
+
+    const qs = params.toString() ? `?${params.toString()}` : '';
+
+    return this.request(`/cxp${qs}`);
+  },
+
+  getCuentaPorPagar(id) {
+    return this.request(`/cxp/${id}`);
+  },
+
+  getPagosCxp(id) {
+    return this.request(`/cxp/${id}/pagos`);
+  },
+
+  getResumenCxp() {
+    return this.request('/cxp/resumen');
   }
 };

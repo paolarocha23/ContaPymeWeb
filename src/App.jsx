@@ -11,6 +11,7 @@ import InactivityModal from './components/InactivityModal';
 import ClientesView from './components/Clientes/ClientesView';
 import Layout from './components/Layuot/Layout';
 import Dashboard from './components/Dashboard/Dashboard';
+import CuentasPorPagarView from './components/CuentasPorPagar/CuentasPorPagarView';
 import { useInactivityTimer } from './hooks/useInactivityTimer';
 import { api } from './services/api';
 
@@ -118,7 +119,13 @@ export default function App() {
 
   // Vistas que ya tienen pantalla propia (el resto muestra el placeholder)
   const isClientes = activeView === 'clientes' || activeView === 'contactos';
-  const hasOwnView = activeView === 'dashboard' || activeView === 'admin' || isClientes;
+  const isCuentasPorPagar = activeView === 'cxp';
+
+  const hasOwnView =
+    activeView === 'dashboard' ||
+    activeView === 'admin' ||
+    isClientes ||
+    isCuentasPorPagar;
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -186,6 +193,7 @@ export default function App() {
             )}
 
             {isClientes && <ClientesView />}
+            {isCuentasPorPagar && <CuentasPorPagarView />}
 
             {!hasOwnView && (
               <section className="cpy-module-placeholder">

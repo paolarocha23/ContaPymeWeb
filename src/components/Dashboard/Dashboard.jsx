@@ -213,7 +213,9 @@ export default function Dashboard({ onNavigate }) {
         <article className="cpy-card cpy-finance-card">
           <div className="cpy-finance-head">
             <h2>Cuentas por pagar</h2>
-            <button type="button" onClick={() => onNavigate('finanzas')}>Ver todas <ArrowRight size={13} /></button>
+            <button type="button" onClick={() => onNavigate('cxp')}>
+              Ver todas <ArrowRight size={13} />
+            </button>
           </div>
           <div className="cpy-finance-body">
             <div className="cpy-finance-total">

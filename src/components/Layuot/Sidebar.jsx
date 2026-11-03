@@ -8,25 +8,31 @@ import './Sidebar.css';
 
 const navigation = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'ventas', label: 'Ventas', icon: ShoppingCart},
-  { id: 'compras', label: 'Compras', icon: ShoppingBag},
-  
-  { id: 'inventario', label: 'Inventario', icon: Warehouse, submenu: [
-    { label: 'Productos y Servicios', icon: Package },
-    { label: 'Categorías', icon: Tags },
-    { label: 'Inventario', icon: Boxes },
-  ] },
-  { id: 'contactos', label: 'Contactos', icon: ContactRound, submenu: [
-    { label: 'Clientes', icon: Users },
-    { label: 'Proveedores', icon: Truck },
-  ] },
-  { id: 'finanzas', label: 'Finanzas', icon: Wallet, submenu: [
-    { label: 'Ingresos', icon: HandCoins },
-    { label: 'Gastos', icon: Receipt },
-    { label: 'Caja / Efectivo', icon: Calculator },
-    { label: 'Cuentas por cobrar', icon: FileClock, badge: '5' },
-    { label: 'Cuentas por pagar', icon: FileMinus, badge: '2' },
-  ] },
+  { id: 'ventas', label: 'Ventas', icon: ShoppingCart },
+  { id: 'compras', label: 'Compras', icon: ShoppingBag },
+
+  {
+    id: 'inventario', label: 'Inventario', icon: Warehouse, submenu: [
+      { label: 'Productos y Servicios', icon: Package },
+      { label: 'Categorías', icon: Tags },
+      { label: 'Inventario', icon: Boxes },
+    ]
+  },
+  {
+    id: 'contactos', label: 'Contactos', icon: ContactRound, submenu: [
+      { label: 'Clientes', icon: Users },
+      { label: 'Proveedores', icon: Truck },
+    ]
+  },
+  {
+    id: 'finanzas', label: 'Finanzas', icon: Wallet, submenu: [
+      { id: 'ingresos', label: 'Ingresos', icon: HandCoins },
+      { id: 'gastos', label: 'Gastos', icon: Receipt },
+      { id: 'caja', label: 'Caja / Efectivo', icon: Calculator },
+      { id: 'cxc', label: 'Cuentas por cobrar', icon: FileClock, badge: '5' },
+      { id: 'cxp', label: 'Cuentas por pagar', icon: FileMinus, badge: '2' },
+    ]
+  },
   { id: 'reports', label: 'Reportes', icon: FileBarChart },
   { id: 'usuarios', label: 'Usuarios y roles', icon: Users },
 ];
@@ -131,7 +137,8 @@ export default function Sidebar({ activeView, onNavigate, onManualLogout }) {
                   key={option.label}
                   onClick={() => {
                     setSelectedOption(`${openMenu.id}:${option.label}`);
-                    selectItem({ id: openMenu.id });
+                    setOpenMenu(null);
+                    onNavigate(option.id);
                   }}
                 >
                   <span className="cpy-flyout-icon"><OptionIcon size={18} strokeWidth={2} /></span>
