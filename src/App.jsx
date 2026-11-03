@@ -9,6 +9,7 @@ import RoleManagement from './components/RoleManagement';
 import BitacoraView from './components/BitacoraView';
 import InactivityModal from './components/InactivityModal';
 import ClientesView from './components/Clientes/ClientesView';
+import ProveedoresView from './components/Proveedores/ProveedoresView';
 import Layout from './components/Layuot/Layout';
 import Dashboard from './components/Dashboard/Dashboard';
 import CuentasPorPagarView from './components/CuentasPorPagar/CuentasPorPagarView';
@@ -108,23 +109,26 @@ export default function App() {
     inventario: 'Inventario',
     contactos: 'Contactos',
     clientes: 'Contactos',
+    proveedores: 'Contactos',
     finanzas: 'Finanzas',
   };
 
   const subtitles = {
     dashboard: 'Resumen de las operaciones de ContaPyme',
     clientes: 'Catálogo de clientes',
+    proveedores: 'Catálogo de proveedores',
     contactos: 'Catálogo de clientes',
   };
 
   // Vistas que ya tienen pantalla propia (el resto muestra el placeholder)
   const isClientes = activeView === 'clientes' || activeView === 'contactos';
+  const isProveedores = activeView === 'proveedores';
   const isCuentasPorPagar = activeView === 'cxp';
 
   const hasOwnView =
     activeView === 'dashboard' ||
     activeView === 'admin' ||
-    isClientes ||
+    isClientes || isProveedores ||
     isCuentasPorPagar;
 
   return (
@@ -193,6 +197,7 @@ export default function App() {
             )}
 
             {isClientes && <ClientesView />}
+            {isProveedores && <ProveedoresView />}
             {isCuentasPorPagar && <CuentasPorPagarView />}
 
             {!hasOwnView && (

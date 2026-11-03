@@ -7,6 +7,7 @@ import userRoutes from './routes/userRoutes.js';
 import bitacoraRoutes from './routes/bitacoraRoutes.js';
 import clienteRoutes from './routes/clienteRoutes.js';
 import cuentasPorPagarRoutes from './routes/cuentasPorPagarRoutes.js';
+import proveedorRoutes from './routes/proveedorRoutes.js';
 import { initializeDatabase } from './config/init_db.js';
 
 dotenv.config();
@@ -83,6 +84,14 @@ app.get('/api', (req, res) => {
         /**delete: 'DELETE /api/clientes/:id'**/
         opciones: 'GET /api/clientes/opciones',
       },
+      proveedores: {
+        list: 'GET /api/proveedores (?q=...&estatus=...)',
+        stats: 'GET /api/proveedores/stats',
+        get: 'GET /api/proveedores/:id (acepta P-0001 o ID numérico)',
+        create: 'POST /api/proveedores',
+        update: 'PUT /api/proveedores/:id',
+        toggleStatus: 'PATCH /api/proveedores/:id/status (no permite desactivar si tiene compras)'
+      },
       bitacora: {
         list: 'GET /api/bitacora (?accion=...&nombre_usuario=...&limit=50&offset=0)'
       },
@@ -104,6 +113,8 @@ app.use('/api/clientes', clienteRoutes);
 app.use('/api/clients', clienteRoutes); // Alias en inglés
 app.use('/api/bitacora', bitacoraRoutes);
 app.use('/api/cxp', cuentasPorPagarRoutes);
+app.use('/api/proveedores', proveedorRoutes);
+app.use('/api/suppliers', proveedorRoutes); // Alias en inglés
 
 // Manejador de rutas no encontradas 404 para la API
 app.use((req, res, next) => {
@@ -118,7 +129,7 @@ app.use((req, res, next) => {
 
 // Manejador global de errores
 app.use((err, req, res, next) => {
-  console.error('💥 Error no controlado en la aplicación:', err);
+  console.error('Error no controlado en la aplicación:', err);
   res.status(500).json({
     success: false,
     message: 'Ocurrió un error inesperado en el servidor.',

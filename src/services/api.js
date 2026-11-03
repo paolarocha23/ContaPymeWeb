@@ -255,6 +255,39 @@ export const api = {
   },
   
 
+  // Proveedores
+ 
+  getSuppliers(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.q) params.append('q', filters.q);
+    if (filters.estatus) params.append('estatus', filters.estatus);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/proveedores${qs}`);
+  },
+ 
+  getSupplierStats() {
+    return this.request('/proveedores/stats');
+  },
+ 
+  createSupplier(data) {
+    return this.request('/proveedores', { method: 'POST', body: JSON.stringify(data) });
+  },
+ 
+  updateSupplier(id, data) {
+    return this.request(`/proveedores/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  },
+ 
+  toggleSupplierStatus(id, estatus) {
+    return this.request(`/proveedores/${encodeURIComponent(id)}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ estatus })
+    });
+  },
+ 
+
   // Bitácora
   getBitacora(params = {}) {
     const qs = new URLSearchParams(params).toString();

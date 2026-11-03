@@ -7,7 +7,7 @@ const { Pool } = pg;
 
 if (!process.env.DATABASE_URL) {
   console.warn(
-    '⚠️ DATABASE_URL no está definida. Configura la cadena de conexión de Supabase en el archivo .env'
+    'DATABASE_URL no está definida. Configura la cadena de conexión de Supabase en el archivo .env'
   );
 }
 
@@ -25,19 +25,19 @@ const pool = new Pool({
 
 // Evita que un error de una conexión inactiva tumbe el proceso
 pool.on('error', (err) => {
-  console.error('❌ Error inesperado en el pool de PostgreSQL:', err.message);
+  console.error('Error inesperado en el pool de PostgreSQL:', err.message);
 });
 
 // Prueba de conexión inicial (no bloquea el arranque)
 pool.query('SELECT current_database() AS db')
   .then(({ rows }) => {
     console.log(
-      `✅ Conectado exitosamente a PostgreSQL (Base de datos: ${rows[0].db})`
+      `Conectado exitosamente a PostgreSQL (Base de datos: ${rows[0].db})`
     );
   })
   .catch((err) => {
     console.error(
-      '❌ Error al conectar con Supabase PostgreSQL:',
+      'Error al conectar con Supabase PostgreSQL:',
       err.message
     );
   });
