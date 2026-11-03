@@ -7,6 +7,7 @@ import ChangePasswordModal from './components/Login/ChangePasswordModal';
 import UserCatalog from './components/UserCatalog';
 import RoleManagement from './components/RoleManagement';
 import BitacoraView from './components/BitacoraView';
+import CategoryCatalog from './components/CategoryCatalog';
 import InactivityModal from './components/InactivityModal';
 import ClientesView from './components/Clientes/ClientesView';
 import ProveedoresView from './components/Proveedores/ProveedoresView';
@@ -103,6 +104,7 @@ export default function App() {
   const pageTitles = {
     dashboard: `Hola, ${firstName}`,
     admin: 'Usuarios y roles',
+    categorias: 'Categorías',
     reports: 'Reportes',
     ventas: 'Ventas',
     compras: 'Compras',
@@ -128,6 +130,7 @@ export default function App() {
   const hasOwnView =
     activeView === 'dashboard' ||
     activeView === 'admin' ||
+    activeView === 'categorias' ||
     isClientes || isProveedores ||
     isCuentasPorPagar;
 
@@ -200,14 +203,18 @@ export default function App() {
             {isProveedores && <ProveedoresView />}
             {isCuentasPorPagar && <CuentasPorPagarView />}
 
+            {activeView === 'categorias' && <CategoryCatalog />}
+
             {!hasOwnView && (
-              <section className="cpy-module-placeholder">
-                <span className="cpy-module-kicker">CONTAPYME</span>
-                <h2>{pageTitles[activeView] || 'Módulo'}</h2>
-                <p>Este espacio está listo para integrar las funciones de este módulo.</p>
-                <button type="button" onClick={() => setActiveView('dashboard')}>Volver al dashboard</button>
-              </section>
-            )}
+            <section className="cpy-module-placeholder">
+              <span className="cpy-module-kicker">CONTAPYME</span>
+              <h2>{pageTitles[activeView] || 'Módulo'}</h2>
+              <p>Este espacio está listo para integrar las funciones de este módulo.</p>
+              <button type="button" onClick={() => setActiveView('dashboard')}>
+                Volver al dashboard
+              </button>
+            </section>
+          )}
           </Layout>
 
           {showChangePasswordModal && (

@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import {
   LayoutDashboard, ShoppingCart, ShoppingBag, Warehouse, ContactRound,
@@ -8,35 +9,29 @@ import './Sidebar.css';
 
 const navigation = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'ventas', label: 'Ventas', icon: ShoppingCart  },
-  { id: 'compras', label: 'Compras', icon: ShoppingBag  },
-{
-   
+  { id: 'ventas', label: 'Ventas', icon: ShoppingCart },
+  { id: 'compras', label: 'Compras', icon: ShoppingBag },
+  {
     id: 'inventario', label: 'Inventario', icon: Warehouse, submenu: [
-        { id: 'productos', label: 'Productos y Servicios', icon: Package },
-        { id: 'categorias', label: 'Categorías', icon: Tags },
-        { id: 'inventario', label: 'Inventario', icon: Boxes },
-      ]
- 
+      { id: 'productos', label: 'Productos y Servicios', icon: Package },
+      { id: 'categorias', label: 'Categorías', icon: Tags },
+      { id: 'inventario', label: 'Inventario', icon: Boxes },
+    ]
   },
   {
-   
     id: 'contactos', label: 'Contactos', icon: ContactRound, submenu: [
-        { id: 'clientes', label: 'Clientes', icon: Users },
-        { id: 'proveedores', label: 'Proveedores', icon: Truck },
-      ]
- 
+      { id: 'clientes', label: 'Clientes', icon: Users },
+      { id: 'proveedores', label: 'Proveedores', icon: Truck },
+    ]
   },
   {
-   
     id: 'finanzas', label: 'Finanzas', icon: Wallet, submenu: [
-        { id: 'ingresos', id: 'ingresos', label: 'Ingresos', icon: HandCoins },
-        { id: 'gastos', id: 'gastos', label: 'Gastos', icon: Receipt },
-        { id: 'caja', id: 'caja', label: 'Caja / Efectivo', icon: Calculator },
-        { id: 'cxc', id: 'cxc', label: 'Cuentas por cobrar', icon: FileClock, badge: '5' },
-        { id: 'cxp', id: 'cxp', label: 'Cuentas por pagar', icon: FileMinus, badge: '2' },
-      ]
- 
+      { id: 'ingresos', label: 'Ingresos', icon: HandCoins },
+      { id: 'gastos', label: 'Gastos', icon: Receipt },
+      { id: 'caja', label: 'Caja / Efectivo', icon: Calculator },
+      { id: 'cxc', label: 'Cuentas por cobrar', icon: FileClock, badge: '5' },
+      { id: 'cxp', label: 'Cuentas por pagar', icon: FileMinus, badge: '2' },
+    ]
   },
   { id: 'reports', label: 'Reportes', icon: FileBarChart },
   { id: 'usuarios', label: 'Usuarios y roles', icon: Users },
@@ -63,14 +58,17 @@ export default function Sidebar({ activeView, onNavigate, onManualLogout }) {
         setOpenMenu(null);
       }
     };
+
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') setOpenMenu(null);
     };
+
     const handleViewportChange = () => setOpenMenu(null);
 
     document.addEventListener('pointerdown', handlePointerDown);
     document.addEventListener('keydown', handleKeyDown);
     window.addEventListener('resize', handleViewportChange);
+
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
@@ -89,10 +87,15 @@ export default function Sidebar({ activeView, onNavigate, onManualLogout }) {
         <nav className="cpy-sidebar-items">
           {navigation.map((item) => {
             const Icon = item.icon;
+
             const isContactosActive = item.id === 'contactos' && (
-              activeView === 'contactos' || activeView === 'clientes' || activeView === 'proveedores'
+              activeView === 'contactos' ||
+              activeView === 'clientes' ||
+              activeView === 'proveedores'
             );
+
             const isSubmenuActive = item.submenu?.some((sub) => sub.id === activeView);
+
             const isActive = activeView === item.id ||
               (item.id === 'usuarios' && activeView === 'admin') ||
               isContactosActive ||
@@ -119,7 +122,9 @@ export default function Sidebar({ activeView, onNavigate, onManualLogout }) {
             );
           })}
         </nav>
+
         <span className="cpy-sidebar-spacer" />
+
         <button
           type="button"
           className="cpy-sidebar-button cpy-logout-button"
@@ -133,7 +138,13 @@ export default function Sidebar({ activeView, onNavigate, onManualLogout }) {
 
       {openMenu && (
         <>
-          <button className="cpy-content-overlay" type="button" aria-label="Cerrar menú" onClick={() => setOpenMenu(null)} />
+          <button
+            className="cpy-content-overlay"
+            type="button"
+            aria-label="Cerrar menú"
+            onClick={() => setOpenMenu(null)}
+          />
+
           <section
             className="cpy-flyout"
             ref={flyoutRef}
@@ -141,23 +152,32 @@ export default function Sidebar({ activeView, onNavigate, onManualLogout }) {
             aria-label={`Submenú de ${openMenu.label}`}
           >
             <h2>{openMenu.label}</h2>
+
             {openMenu.submenu.map((option) => {
               const OptionIcon = option.icon;
-              const isSelected = activeView === option.id || selectedOption === `${openMenu.id}:${option.id || option.label}`;
+              const isSelected = activeView === option.id ||
+                selectedOption === `${openMenu.id}:${option.id}`;
+
               return (
                 <button
                   className={`cpy-flyout-option${isSelected ? ' is-selected' : ''}`}
                   type="button"
                   key={option.id || option.label}
                   onClick={() => {
-                    setSelectedOption(`${openMenu.id}:${option.label}`);
+                    setSelectedOption(`${openMenu.id}:${option.id}`);
                     setOpenMenu(null);
                     onNavigate(option.id);
                   }}
                 >
-                  <span className="cpy-flyout-icon"><OptionIcon size={18} strokeWidth={2} /></span>
+                  <span className="cpy-flyout-icon">
+                    <OptionIcon size={18} strokeWidth={2} />
+                  </span>
+
                   <span className="cpy-flyout-label">{option.label}</span>
-                  {option.badge && <span className="cpy-flyout-badge">{option.badge}</span>}
+
+                  {option.badge && (
+                    <span className="cpy-flyout-badge">{option.badge}</span>
+                  )}
                 </button>
               );
             })}

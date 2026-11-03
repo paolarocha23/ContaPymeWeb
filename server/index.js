@@ -1,9 +1,11 @@
+
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import authRoutes from './routes/authRoutes.js';
 import roleRoutes from './routes/roleRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import categoriaRoutes from './routes/categoriaRoutes.js';
 import bitacoraRoutes from './routes/bitacoraRoutes.js';
 import clienteRoutes from './routes/clienteRoutes.js';
 import cuentasPorPagarRoutes from './routes/cuentasPorPagarRoutes.js';
@@ -17,7 +19,7 @@ const PORT = process.env.PORT || 5000;
 
 // Configuración de CORS
 app.use(cors({
-  origin: true, // Permite peticiones locales y desde otros sistemas
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
@@ -73,6 +75,12 @@ app.get('/api', (req, res) => {
         toggleStatus: 'PATCH /api/users/:id/status',
         adminResetPassword: 'POST /api/users/:id/reset-password-admin'
       },
+      categorias: {
+        list: 'GET /api/categorias (?search=...&estatus=...)',
+        create: 'POST /api/categorias',
+        update: 'PUT /api/categorias/:id',
+        toggleStatus: 'PATCH /api/categorias/:id/status'
+      },
       clientes: {
         list: 'GET /api/clientes (?q=...&estatus=...&ciudad=...&estado=...&colonia=...&adeudo=...)',
         stats: 'GET /api/clientes/stats',
@@ -81,8 +89,7 @@ app.get('/api', (req, res) => {
         create: 'POST /api/clientes',
         update: 'PUT /api/clientes/:id',
         toggleStatus: 'PATCH /api/clientes/:id/status',
-        /**delete: 'DELETE /api/clientes/:id'**/
-        opciones: 'GET /api/clientes/opciones',
+        opciones: 'GET /api/clientes/opciones'
       },
       proveedores: {
         list: 'GET /api/proveedores (?q=...&estatus=...)',
@@ -109,12 +116,13 @@ app.get('/api', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/roles', roleRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/categorias', categoriaRoutes);
 app.use('/api/clientes', clienteRoutes);
-app.use('/api/clients', clienteRoutes); // Alias en inglés
+app.use('/api/clients', clienteRoutes);
 app.use('/api/bitacora', bitacoraRoutes);
 app.use('/api/cxp', cuentasPorPagarRoutes);
 app.use('/api/proveedores', proveedorRoutes);
-app.use('/api/suppliers', proveedorRoutes); // Alias en inglés
+app.use('/api/suppliers', proveedorRoutes);
 
 // Manejador de rutas no encontradas 404 para la API
 app.use((req, res, next) => {
