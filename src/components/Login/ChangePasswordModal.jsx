@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, Eye, EyeOff, X, AlertCircle, CheckCircle2, RotateCw, ShieldAlert } from 'lucide-react';
-import { api } from '../services/api';
+import { api } from '../../services/api';
 
 export default function ChangePasswordModal({ onClose, onSuccess }) {
   const [contrasenaActual, setContrasenaActual] = useState('');

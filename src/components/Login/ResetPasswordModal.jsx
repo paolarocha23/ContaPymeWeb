@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, Eye, EyeOff, X, AlertCircle, CheckCircle2, RotateCw, KeyRound } from 'lucide-react';
-import { api } from '../services/api';
+import { api } from '../../services/api';
 
 export default function ResetPasswordModal({ initialToken = '', onClose, onCompleted }) {
   const [token, setToken] = useState(initialToken);

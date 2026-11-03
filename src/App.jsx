@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import LoginView from './components/LoginView';
-import TwoFactorModal from './components/TwoFactorModal';
-import ForgotPasswordModal from './components/ForgotPasswordModal';
-import ResetPasswordModal from './components/ResetPasswordModal';
-import ChangePasswordModal from './components/ChangePasswordModal';
+import LoginView from './components/Login/LoginView';
+import TwoFactorModal from './components/Login/TwoFactorModal';
+import ForgotPasswordModal from './components/Login/ForgotPasswordModal';
+import ResetPasswordModal from './components/Login/ResetPasswordModal';
+import ChangePasswordModal from './components/Login/ChangePasswordModal';
 import UserCatalog from './components/UserCatalog';
 import RoleManagement from './components/RoleManagement';
 import BitacoraView from './components/BitacoraView';

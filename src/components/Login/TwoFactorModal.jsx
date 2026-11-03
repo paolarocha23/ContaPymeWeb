@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { ShieldCheck, ArrowRight, RotateCw, AlertCircle, ArrowLeft, Mail, KeyRound } from 'lucide-react';
-import { api } from '../services/api';
+import { api } from '../../services/api';
 
 export default function TwoFactorModal({ 
   tempToken, 

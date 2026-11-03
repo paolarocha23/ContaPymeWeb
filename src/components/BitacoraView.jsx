@@ -1,186 +1,269 @@
-import React, { useState, useEffect } from 'react';
-import { ScrollText, Search, RefreshCw, Shield, AlertTriangle, CheckCircle, LogOut, Key, UserCheck } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  ScrollText, Search, RefreshCw, Shield, AlertTriangle, CheckCircle, LogOut, Key,
+  Plus, Pencil, Power, HandCoins, ChevronLeft, ChevronRight, ListChecks, ShieldAlert
+} from 'lucide-react';
 import { api } from '../services/api';
+import './Bitacora.css';
+
+const POR_PAGINA = 10;
+
+/** Tono e icono de cada acción. Se evalúa en orden: la primera coincidencia gana. */
+const getActionBadge = (accion = '') => {
+  const a = accion.toUpperCase();
+  if (a.includes('FALLID') || a.includes('DENEGAD')) return { tone: 'bad', icon: <AlertTriangle size={13} /> };
+  if (a.includes('DESACTIV')) return { tone: 'warn', icon: <Power size={13} /> };
+  if (a.includes('PAGO') || a.includes('SALDO')) return { tone: 'info', icon: <HandCoins size={13} /> };
+  if (a.includes('CREACION')) return { tone: 'info', icon: <Plus size={13} /> };
+  if (a.includes('MODIFICACION')) return { tone: 'info', icon: <Pencil size={13} /> };
+  if (a.includes('EXITOS') || a.includes('ACTIVACION')) return { tone: 'ok', icon: <CheckCircle size={13} /> };
+  if (a.includes('CIERRE_SESION')) return { tone: 'gray', icon: <LogOut size={13} /> };
+  if (a.includes('CONTRASENA')) return { tone: 'warn', icon: <Key size={13} /> };
+  return { tone: 'info', icon: <Shield size={13} /> };
+};
+
+const iniciales = (nombre = '') =>
+  nombre.trim().split(/[\s._-]+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase() || '?';
+
+const fechaDe = (valor) => {
+  const d = new Date(valor);
+  if (Number.isNaN(d.getTime())) return { dia: '—', hora: '' };
+  return {
+    dia: d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/\./g, ''),
+    hora: d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  };
+};
 
 export default function BitacoraView() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [filterAction, setFilterAction] = useState('');
   const [filterUser, setFilterUser] = useState('');
+  const [pagina, setPagina] = useState(1);
+  const ultimaPeticion = useRef(0);
 
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
+    const id = ++ultimaPeticion.current;
     setLoading(true);
+    setError('');
     try {
       const res = await api.getBitacora({
         accion: filterAction,
         nombre_usuario: filterUser,
         limit: 100
       });
-      setLogs(res.data || []);
+      if (id === ultimaPeticion.current) setLogs(res.data || []);
     } catch (err) {
-      console.error('Error al cargar bitácora:', err);
+      if (id === ultimaPeticion.current) setError(err.message || 'Error al cargar la bitácora.');
     } finally {
-      setLoading(false);
+      if (id === ultimaPeticion.current) setLoading(false);
     }
-  };
-
-  useEffect(() => {
-    fetchLogs();
   }, [filterAction, filterUser]);
 
-  const getActionBadge = (accion) => {
-    if (accion.includes('FALLID') || accion.includes('DENEGAD')) {
-      return { class: 'badge-inactive', icon: <AlertTriangle size={13} /> };
-    }
-    if (accion.includes('EXITOS') || accion.includes('ACTIVACION')) {
-      return { class: 'badge-active', icon: <CheckCircle size={13} /> };
-    }
-    if (accion.includes('CIERRE_SESION')) {
-      return { class: 'badge-custom', icon: <LogOut size={13} /> };
-    }
-    if (accion.includes('CONTRASENA')) {
-      return { class: 'badge-encargado', icon: <Key size={13} /> };
-    }
-    return { class: 'badge-admin', icon: <Shield size={13} /> };
-  };
+  // Retraso para no consultar en cada tecla
+  useEffect(() => {
+    const t = setTimeout(fetchLogs, filterAction || filterUser ? 300 : 0);
+    return () => clearTimeout(t);
+  }, [fetchLogs, filterAction, filterUser]);
+
+  useEffect(() => { setPagina(1); }, [filterAction, filterUser]);
+
+  const hayFiltros = Boolean(filterAction || filterUser);
+
+  // Resumen de lo cargado
+  const exitosos = logs.filter((l) => /EXITOS/i.test(l.accion)).length;
+  const fallidos = logs.filter((l) => /FALLID|DENEGAD/i.test(l.accion)).length;
+  const cierres = logs.filter((l) => /CIERRE_SESION/i.test(l.accion)).length;
+
+  const totalPaginas = Math.max(1, Math.ceil(logs.length / POR_PAGINA));
+  const paginaActual = Math.min(pagina, totalPaginas);
+  const inicio = (paginaActual - 1) * POR_PAGINA;
+  const visibles = logs.slice(inicio, inicio + POR_PAGINA);
 
   return (
-    <div style={{ maxWidth: '1360px', margin: '0 auto', padding: '28px 24px' }}>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '16px',
-        marginBottom: '24px'
-      }}>
-        <div>
-          <h1 style={{ fontSize: '1.6rem', color: '#f8fafc', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <ScrollText size={28} color="#6366f1" />
-            Bitácora de Accesos y Seguridad
-          </h1>
-          <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginTop: '2px' }}>
-            Registro cronológico inmutable de intentos de acceso, verificaciones en 2 pasos, cierres de sesión por inactividad y auditoría.
-          </p>
+    <div className="bit">
+      {/* Encabezado */}
+      <div className="bit-head">
+        <div className="bit-head-left">
+          <span className="bit-head-ico"><ScrollText size={24} /></span>
+          <div>
+            <h2>Bitácora de accesos y seguridad</h2>
+            <p>
+              Registro cronológico de intentos de acceso, verificaciones en 2 pasos, cierres de sesión
+              y movimientos realizados en el sistema.
+            </p>
+          </div>
         </div>
-
-        <button
-          type="button"
-          className="btn btn-secondary"
-          onClick={fetchLogs}
-          disabled={loading}
-        >
-          <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-          Actualizar Bitácora
+        <button type="button" className="bit-refresh" onClick={fetchLogs} disabled={loading}>
+          <RefreshCw size={16} className={loading ? 'spinning' : ''} />
+          Actualizar
         </button>
       </div>
 
-      {/* Filtros */}
-      <div className="card" style={{ padding: '16px 20px', marginBottom: '24px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-          <div className="input-with-icon" style={{ flex: '1 1 240px' }}>
-            <Search className="input-icon" size={18} />
-            <input
-              type="text"
-              className="form-input"
-              placeholder="Filtrar por acción (ej. INICIO, CIERRE, 2FA)..."
-              value={filterAction}
-              onChange={(e) => setFilterAction(e.target.value)}
-            />
+      {error && (
+        <div className="alert alert-error" style={{ marginBottom: 0 }}>
+          <AlertTriangle size={18} />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {/* Tarjetas de resumen */}
+      <div className="bit-stats">
+        <div className="stat-card">
+          <div className="stat-icon-wrapper"><ListChecks size={22} /></div>
+          <div><div className="stat-label">Registros mostrados</div><div className="stat-value">{logs.length}</div></div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon-wrapper bit-stat-ok"><CheckCircle size={22} /></div>
+          <div><div className="stat-label">Accesos exitosos</div><div className="stat-value">{exitosos}</div></div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon-wrapper bit-stat-bad"><ShieldAlert size={22} /></div>
+          <div><div className="stat-label">Intentos fallidos</div>
+            <div className="stat-value" style={{ color: fallidos ? '#C2362F' : undefined }}>{fallidos}</div>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon-wrapper"><LogOut size={22} /></div>
+          <div><div className="stat-label">Cierres de sesión</div><div className="stat-value">{cierres}</div></div>
+        </div>
+      </div>
+
+      {/* Filtros + tabla */}
+      <div className="content-box" style={{ padding: 0, marginBottom: 0, overflow: 'hidden' }}>
+        <div className="table-filter-bar" style={{ padding: '18px 22px', margin: 0, borderBottom: '1px solid #E4E8F5' }}>
+          <div className="table-search-input">
+            <div className="input-with-icon">
+              <Search className="input-icon" size={18} />
+              <input
+                type="text"
+                className="form-input form-input-pill"
+                placeholder="Filtrar por acción (ej. INICIO, CIERRE, 2FA)..."
+                value={filterAction}
+                onChange={(e) => setFilterAction(e.target.value)}
+              />
+            </div>
           </div>
 
-          <div className="input-with-icon" style={{ flex: '1 1 240px' }}>
-            <Search className="input-icon" size={18} />
-            <input
-              type="text"
-              className="form-input"
-              placeholder="Filtrar por nombre de usuario..."
-              value={filterUser}
-              onChange={(e) => setFilterUser(e.target.value)}
-            />
+          <div className="table-search-input">
+            <div className="input-with-icon">
+              <Search className="input-icon" size={18} />
+              <input
+                type="text"
+                className="form-input form-input-pill"
+                placeholder="Filtrar por nombre de usuario..."
+                value={filterUser}
+                onChange={(e) => setFilterUser(e.target.value)}
+              />
+            </div>
           </div>
 
-          {(filterAction || filterUser) && (
+          {hayFiltros && (
             <button
               type="button"
-              className="btn btn-sm btn-secondary"
+              className="btn btn-ghost btn-sm"
+              style={{ color: '#142A95', marginLeft: 'auto', fontWeight: 600 }}
               onClick={() => { setFilterAction(''); setFilterUser(''); }}
             >
               Limpiar
             </button>
           )}
         </div>
-      </div>
 
-      {/* Tabla de Registros */}
-      <div className="table-container">
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '50px 0', color: '#94a3b8' }}>
-            <RefreshCw className="animate-spin" size={32} style={{ margin: '0 auto 12px' }} />
-            <div>Consultando bitácora de accesos...</div>
-          </div>
-        ) : logs.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '48px 24px', color: '#94a3b8' }}>
-            <ScrollText size={48} style={{ margin: '0 auto 12px', opacity: 0.5 }} />
-            <p style={{ fontSize: '1rem', color: '#f8fafc' }}>No hay registros de bitácora que coincidan.</p>
-          </div>
-        ) : (
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Fecha y Hora</th>
-                <th>Usuario</th>
-                <th>Acción</th>
-                <th>IP Origen</th>
-                <th>Detalles del Evento</th>
-              </tr>
-            </thead>
-            <tbody>
-              {logs.map(log => {
-                const badgeInfo = getActionBadge(log.accion);
-                return (
-                  <tr key={log.id_bitacora}>
-                    <td style={{ color: '#64748b', fontFamily: 'monospace' }}>
-                      #{log.id_bitacora}
-                    </td>
-                    <td style={{ color: '#cbd5e1', whiteSpace: 'nowrap', fontSize: '0.82rem' }}>
-                      {new Date(log.fecha).toLocaleString('es-MX', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                        second: '2-digit'
-                      })}
-                    </td>
-                    <td>
-                      <span style={{ fontWeight: '600', color: '#f8fafc' }}>
-                        {log.nombre_usuario || 'Desconocido'}
-                      </span>
-                      {log.id_usuario && (
-                        <span style={{ fontSize: '0.72rem', color: '#64748b', marginLeft: '6px' }}>
-                          (ID: {log.id_usuario})
+        <div className="table-container-clean">
+          {loading ? (
+            <div className="cli-empty" style={{ padding: '60px 0' }}>
+              <RefreshCw className="spinning" size={28} style={{ color: '#183b9c' }} />
+              <div style={{ marginTop: 10 }}>Consultando bitácora...</div>
+            </div>
+          ) : (
+            <table className="table-clean">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>FECHA Y HORA</th>
+                  <th>USUARIO</th>
+                  <th>ACCIÓN</th>
+                  <th>IP ORIGEN</th>
+                  <th>DETALLES DEL EVENTO</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibles.map((log) => {
+                  const badge = getActionBadge(log.accion);
+                  const { dia, hora } = fechaDe(log.fecha);
+                  const nombre = log.nombre_usuario || 'Desconocido';
+                  return (
+                    <tr key={log.id_bitacora}>
+                      <td><span className="bit-id">#{log.id_bitacora}</span></td>
+                      <td>
+                        <div className="bit-date"><b>{dia}</b><small>{hora}</small></div>
+                      </td>
+                      <td>
+                        <div className="bit-user">
+                          <span className="user-avatar-initials" style={{ background: '#E8ECFB', color: '#142A95' }}>
+                            {iniciales(nombre)}
+                          </span>
+                          <div>
+                            <b>{nombre}</b>
+                            {log.id_usuario && <small>ID {log.id_usuario}</small>}
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`bit-pill ${badge.tone}`}>
+                          {badge.icon}
+                          {String(log.accion || '').replace(/_/g, ' ')}
                         </span>
-                      )}
-                    </td>
-                    <td>
-                      <span className={`badge ${badgeInfo.class}`}>
-                        {badgeInfo.icon}
-                        {log.accion}
-                      </span>
-                    </td>
-                    <td style={{ fontFamily: 'monospace', fontSize: '0.82rem', color: '#94a3b8' }}>
-                      {log.ip_origen || '127.0.0.1'}
-                    </td>
-                    <td style={{ color: '#cbd5e1', fontSize: '0.85rem' }}>
-                      {log.detalle || '—'}
+                      </td>
+                      <td><span className="bit-ip">{log.ip_origen || '127.0.0.1'}</span></td>
+                      <td>
+                        <div className="bit-detail" title={log.detalle || ''}>{log.detalle || '—'}</div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {visibles.length === 0 && (
+                  <tr>
+                    <td colSpan={6} className="cli-empty">
+                      <ScrollText size={32} style={{ color: '#C9D2F5', marginBottom: 8 }} />
+                      <div>
+                        {hayFiltros
+                          ? 'No hay registros de bitácora que coincidan con los filtros.'
+                          : 'Aún no hay registros en la bitácora.'}
+                      </div>
                     </td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {!loading && logs.length > 0 && (
+          <div className="table-pagination-footer" style={{ margin: 0, padding: '16px 22px' }}>
+            <span>
+              Mostrando {inicio + 1}–{Math.min(inicio + POR_PAGINA, logs.length)} de {logs.length} registros
+            </span>
+            <div className="pagination-controls">
+              <button type="button" className="pagination-btn" disabled={paginaActual === 1}
+                onClick={() => setPagina(paginaActual - 1)}>
+                <ChevronLeft size={16} />
+              </button>
+              {Array.from({ length: totalPaginas }, (_, i) => i + 1).map((n) => (
+                <button type="button" key={n}
+                  className={`pagination-btn${n === paginaActual ? ' active' : ''}`}
+                  onClick={() => setPagina(n)}>
+                  {n}
+                </button>
+              ))}
+              <button type="button" className="pagination-btn" disabled={paginaActual === totalPaginas}
+                onClick={() => setPagina(paginaActual + 1)}>
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>

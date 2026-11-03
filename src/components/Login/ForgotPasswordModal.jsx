@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Mail, ArrowRight, X, AlertCircle, CheckCircle2, RotateCw, Key } from 'lucide-react';
-import { api } from '../services/api';
+import { api } from '../../services/api';
 
 export default function ForgotPasswordModal({ onClose, onGoToReset }) {
   const [identificador, setIdentificador] = useState('');

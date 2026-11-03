@@ -1,0 +1,137 @@
+.rol { display: flex; flex-direction: column; gap: 16px; }
+
+/* Encabezado */
+.rol-head { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.rol-head-left { display: flex; align-items: center; gap: 14px; }
+.rol-head-ico {
+  width: 48px; height: 48px; border-radius: 14px; background: #E8ECFB; color: #142A95;
+  display: flex; align-items: center; justify-content: center; flex: none;
+}
+.rol-head h2 { font-size: 26px; font-weight: 800; letter-spacing: -.01em; color: #0B132B; margin: 0; }
+.rol-head p { margin: 4px 0 0; font-size: 13px; color: #6B7280; font-weight: 500; }
+.rol-head-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+.rol-btn {
+  height: 44px; padding: 0 22px; border-radius: 9999px; cursor: pointer; font: 700 13px inherit;
+  display: inline-flex; align-items: center; gap: 8px; transition: transform .15s ease;
+}
+.rol-btn:hover { transform: translateY(-1px); }
+.rol-btn.outline { background: #fff; color: #142A95; border: 1.5px solid #142A95; }
+.rol-btn.primary {
+  border: none; color: #fff; background: linear-gradient(135deg, #2A44C9, #142A95 60%, #0B1C66);
+  box-shadow: 0 10px 20px -8px rgba(20, 42, 149, .65);
+}
+
+/* Estadísticas */
+.rol-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+/* Buscador */
+.rol-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.rol-search { width: 346px; max-width: 100%; }
+.rol-count { font-size: 12.5px; font-weight: 700; color: #6B7280; }
+
+/* Tarjetas */
+.rol-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; align-items: stretch; }
+.rol-card {
+  background: #fff; border-radius: 22px; display: flex; flex-direction: column; overflow: hidden;
+  box-shadow: 0 10px 28px -14px rgba(15, 27, 77, .35);
+}
+.rol-card.is-off .rol-name, .rol-card.is-off .rol-icon { opacity: .6; }
+.rol-card-body { padding: 20px 20px 16px; flex: 1; display: flex; flex-direction: column; }
+
+.rol-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.rol-top-left { display: flex; gap: 12px; align-items: center; min-width: 0; }
+.rol-icon {
+  width: 44px; height: 44px; border-radius: 14px; background: #E8ECFB; color: #142A95; flex: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.rol-icon.is-main {
+  color: #fff; background: linear-gradient(135deg, #2A44C9, #142A95 60%, #0B1C66);
+  box-shadow: 0 10px 18px -8px rgba(20, 42, 149, .7);
+}
+.rol-name { font-size: 18px; font-weight: 800; color: #0B132B; line-height: 1.2; overflow-wrap: anywhere; }
+.rol-id { font-size: 11.5px; font-weight: 600; color: #9AA1B8; margin-top: 2px; }
+
+.rol-status {
+  display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 14px;
+  font-size: 12px; font-weight: 700; flex: none;
+}
+.rol-status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.rol-status.on { background: #E3F5EE; color: #12805C; }
+.rol-status.off { background: #EEF0F6; color: #6B7280; }
+
+.rol-lock {
+  display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 11px; margin-top: 12px;
+  border-radius: 13px; background: #E8ECFB; color: #142A95; font-size: 11.5px; font-weight: 700; align-self: flex-start;
+}
+.rol-desc { margin: 14px 0; font-size: 13px; color: #6B7280; line-height: 1.5; min-height: 40px; }
+
+/* Usuarios asignados */
+.rol-users { display: flex; align-items: center; gap: 14px; background: #F3F5FC; border-radius: 16px; padding: 14px 16px; }
+.rol-avatars { display: flex; align-items: center; }
+.rol-av {
+  width: 30px; height: 30px; border-radius: 50%; border: 2px solid #F3F5FC; margin-left: -8px;
+  display: flex; align-items: center; justify-content: center; font-size: 10.5px; font-weight: 800;
+}
+.rol-av:first-child { margin-left: 0; }
+.rol-av.c0 { background: #E8ECFB; color: #142A95; }
+.rol-av.c1 { background: #FDF3E1; color: #B26A00; }
+.rol-av.c2 { background: #E3F5EE; color: #12805C; }
+.rol-av.more { background: #EEF0F6; color: #6B7280; }
+.rol-users b { display: block; font-size: 13px; font-weight: 800; color: #0B132B; }
+.rol-users small { display: block; margin-top: 2px; font-size: 11.5px; color: #6B7280; font-weight: 600; }
+.rol-users small .ok { color: #12805C; font-weight: 700; }
+
+/* Permisos */
+.rol-perm { margin-top: 18px; }
+.rol-perm-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.rol-perm-head span { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #142A95; }
+.rol-perm-head b { font-size: 12.5px; font-weight: 800; color: #0B132B; }
+.rol-bar { height: 6px; border-radius: 3px; background: #E8ECFB; overflow: hidden; }
+.rol-bar > span { display: block; height: 100%; border-radius: 3px; background: linear-gradient(90deg, #2A44C9, #0B1C66); }
+.rol-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.rol-chip {
+  display: inline-flex; align-items: center; height: 28px; padding: 0 12px; border-radius: 14px;
+  background: #E8ECFB; color: #142A95; font-size: 11.5px; font-weight: 700; border: none;
+}
+.rol-chip.more { background: #EEF0F6; color: #6B7280; cursor: pointer; }
+.rol-empty-perm { font-size: 12.5px; font-style: italic; color: #9AA1B8; }
+
+/* Pie de tarjeta */
+.rol-foot { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px 12px 20px; border-top: 1px solid #EEF2FB; }
+.rol-link {
+  display: inline-flex; align-items: center; gap: 8px; background: none; border: none; cursor: pointer;
+  color: #142A95; font: 700 12.5px inherit; padding: 0;
+}
+.rol-foot-actions { display: flex; gap: 8px; }
+.rol-icon-btn {
+  width: 38px; height: 38px; border-radius: 12px; border: none; cursor: pointer; background: #F3F5FC; color: #142A95;
+  display: flex; align-items: center; justify-content: center; transition: transform .15s ease;
+}
+.rol-icon-btn:hover:not(:disabled) { transform: scale(1.06); }
+.rol-icon-btn.edit {
+  color: #fff; background: linear-gradient(135deg, #2A44C9, #142A95 60%, #0B1C66);
+  box-shadow: 0 8px 14px -6px rgba(20, 42, 149, .7);
+}
+.rol-icon-btn.power { color: #B26A00; }
+.rol-icon-btn.power.activar { color: #12805C; }
+.rol-icon-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+.rol-empty { background: #fff; border-radius: 22px; text-align: center; padding: 56px 24px; color: #6B7280; }
+
+/* Modales */
+.rol-modal { max-width: 640px !important; width: 100%; border-radius: 20px !important; padding: 28px !important; box-shadow: 0 24px 48px -12px rgba(11, 19, 43, .25) !important; }
+.rol-modal.sm { max-width: 480px !important; }
+.rol-modal h3 { font-size: 1.25rem; font-weight: 800; color: #0B132B; margin: 0; display: flex; align-items: center; gap: 10px; }
+.rol-modal-sub { font-size: .875rem; color: #6B7280; margin-top: 4px; }
+.rol-perm-box { max-height: 280px; overflow-y: auto; border: 1px solid #E4E8F5; border-radius: 14px; padding: 12px; background: #F8F9FE; }
+.rol-perm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+.rol-perm-item {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px; border-radius: 10px; cursor: pointer;
+  font-size: 12.5px; font-weight: 600; color: #6B7280; background: #fff; border: 1px solid transparent;
+}
+.rol-perm-item.on { background: #E8ECFB; color: #142A95; border-color: #C9D2F5; }
+.rol-perm-item input { accent-color: #142A95; }
+.rol-linkbtn { background: none; border: none; color: #142A95; font-size: 12px; font-weight: 700; cursor: pointer; }
+
+@media (max-width: 1100px) { .rol-stats { grid-template-columns: 1fr; } }

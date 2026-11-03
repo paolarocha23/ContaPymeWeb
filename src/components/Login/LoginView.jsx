@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, User, Eye, EyeOff, ArrowRight, AlertCircle, RotateCw, Key } from 'lucide-react';
-import { api } from '../services/api';
+import { api } from '../../services/api';
 import './LoginView.css';
 
 export default function LoginView({ onRequire2FA, onOpenForgot, onOpenReset, sessionExpiredMsg }) {
