@@ -134,7 +134,6 @@ export default function ProveedoresView() {
             <table className="table-clean">
               <thead>
                 <tr>
-                  <th>ID</th>
                   <th>EMPRESA</th>
                   <th>CONTACTO</th>
                   <th>CIUDAD Y ESTADO</th>
@@ -147,7 +146,6 @@ export default function ProveedoresView() {
               <tbody>
                 {visibles.map((p) => (
                   <tr key={p.id}>
-                    <td style={{ color: '#142A95', fontWeight: 700 }}>{p.codigo}</td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                         <span className="user-avatar-initials" style={{ background: '#E8ECFB', color: '#142A95' }}>
@@ -190,7 +188,7 @@ export default function ProveedoresView() {
                 ))}
                 {visibles.length === 0 && (
                   <tr>
-                    <td colSpan={8} className="cli-empty">
+                    <td colSpan={7} className="cli-empty">
                       {hayFiltros ? 'No se encontraron proveedores con esos filtros.' : 'Aún no hay proveedores registrados.'}
                     </td>
                   </tr>

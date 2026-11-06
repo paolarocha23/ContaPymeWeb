@@ -14,6 +14,8 @@ import Layout from './components/Layuot/Layout';
 import Dashboard from './components/Dashboard/Dashboard';
 import CuentasPorPagarView from './components/CuentasPorPagar/CuentasPorPagarView';
 import { useInactivityTimer } from './hooks/useInactivityTimer';
+import CategoriasView from './components/Categorias/CategoriasView';
+import ProductosView from './components/ProductosyServicio/ProductosView';
 import { api } from './services/api';
 
 export default function App() {
@@ -111,6 +113,8 @@ export default function App() {
     clientes: 'Contactos',
     proveedores: 'Contactos',
     finanzas: 'Finanzas',
+    categorias: 'Inventario', 
+    productos: 'Inventario',
   };
 
   const subtitles = {
@@ -118,6 +122,8 @@ export default function App() {
     clientes: 'Catálogo de clientes',
     proveedores: 'Catálogo de proveedores',
     contactos: 'Catálogo de clientes',
+    categorias: 'Catálogo de categorías',
+    productos: 'Catálogo de productos y servicios',
   };
 
   // Vistas que ya tienen pantalla propia (el resto muestra el placeholder)
@@ -128,6 +134,8 @@ export default function App() {
   const hasOwnView =
     activeView === 'dashboard' ||
     activeView === 'admin' ||
+    activeView === 'categorias' ||
+    activeView === 'productos' ||
     isClientes || isProveedores ||
     isCuentasPorPagar;
 
@@ -199,6 +207,8 @@ export default function App() {
             {isClientes && <ClientesView />}
             {isProveedores && <ProveedoresView />}
             {isCuentasPorPagar && <CuentasPorPagarView />}
+            {activeView === 'categorias' && <CategoriasView />}
+            {activeView === 'productos' && <ProductosView />}
 
             {!hasOwnView && (
               <section className="cpy-module-placeholder">

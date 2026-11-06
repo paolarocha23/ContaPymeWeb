@@ -18,7 +18,6 @@
 
 .cpy-main-card {
   position: relative;
-  z-index: 1;
   flex: 1;
   min-width: 0;
   padding: 0 4px 8px 0;

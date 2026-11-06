@@ -7,7 +7,9 @@ import userRoutes from './routes/userRoutes.js';
 import bitacoraRoutes from './routes/bitacoraRoutes.js';
 import clienteRoutes from './routes/clienteRoutes.js';
 import cuentasPorPagarRoutes from './routes/cuentasPorPagarRoutes.js';
+import categoriaRoutes from './routes/categoriaRoutes.js';
 import proveedorRoutes from './routes/proveedorRoutes.js';
+import productoRoutes from './routes/productoRoutes.js';
 import { initializeDatabase } from './config/init_db.js';
 
 dotenv.config();
@@ -92,6 +94,26 @@ app.get('/api', (req, res) => {
         update: 'PUT /api/proveedores/:id',
         toggleStatus: 'PATCH /api/proveedores/:id/status (no permite desactivar si tiene compras)'
       },
+      
+      categorias: {
+        list: 'GET /api/categorias (?q=...&estatus=...)',
+        stats: 'GET /api/categorias/stats',
+        get: 'GET /api/categorias/:id (acepta CAT-0001 o ID numérico)',
+        create: 'POST /api/categorias',
+        update: 'PUT /api/categorias/:id',
+        toggleStatus: 'PATCH /api/categorias/:id/status (no permite desactivar si tiene productos)'
+      },
+      productos: { 
+        list: 'GET /api/productos (?q=...&estatus=...&id_categoria=...)',
+        stats: 'GET /api/productos/stats',
+        categorias: 'GET /api/productos/categorias',
+        get: 'GET /api/productos/:id',
+        create: 'POST /api/productos',
+        update: 'PUT /api/productos/:id',
+        toggleStatus: 'PATCH /api/productos/:id/status',
+        delete: 'DELETE /api/productos/:id (solo si no tiene operaciones relacionadas)'
+      },
+
       bitacora: {
         list: 'GET /api/bitacora (?accion=...&nombre_usuario=...&limit=50&offset=0)'
       },
@@ -115,6 +137,8 @@ app.use('/api/bitacora', bitacoraRoutes);
 app.use('/api/cxp', cuentasPorPagarRoutes);
 app.use('/api/proveedores', proveedorRoutes);
 app.use('/api/suppliers', proveedorRoutes); // Alias en inglés
+app.use('/api/categorias', categoriaRoutes);
+app.use('/api/productos', productoRoutes);
 
 // Manejador de rutas no encontradas 404 para la API
 app.use((req, res, next) => {

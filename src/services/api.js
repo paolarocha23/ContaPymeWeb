@@ -250,13 +250,13 @@ export const api = {
     });
   },
 
-    getClientOptions() {
+  getClientOptions() {
     return this.request('/clientes/opciones');
   },
-  
+
 
   // Proveedores
- 
+
   getSuppliers(filters = {}) {
     const params = new URLSearchParams();
     if (filters.q) params.append('q', filters.q);
@@ -264,29 +264,29 @@ export const api = {
     const qs = params.toString() ? `?${params.toString()}` : '';
     return this.request(`/proveedores${qs}`);
   },
- 
+
   getSupplierStats() {
     return this.request('/proveedores/stats');
   },
- 
+
   createSupplier(data) {
     return this.request('/proveedores', { method: 'POST', body: JSON.stringify(data) });
   },
- 
+
   updateSupplier(id, data) {
     return this.request(`/proveedores/${encodeURIComponent(id)}`, {
       method: 'PUT',
       body: JSON.stringify(data)
     });
   },
- 
+
   toggleSupplierStatus(id, estatus) {
     return this.request(`/proveedores/${encodeURIComponent(id)}/status`, {
       method: 'PATCH',
       body: JSON.stringify({ estatus })
     });
   },
- 
+
 
   // Bitácora
   getBitacora(params = {}) {
@@ -322,5 +322,86 @@ export const api = {
 
   getResumenCxp() {
     return this.request('/cxp/resumen');
+  },
+
+  // Categorías
+  getCategories(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.q) params.append('q', filters.q);
+    if (filters.estatus !== undefined && filters.estatus !== '') params.append('estatus', filters.estatus);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/categorias${qs}`);
+  },
+
+  getCategoryStats() {
+    return this.request('/categorias/stats');
+  },
+
+  createCategory(data) {
+    return this.request('/categorias', { method: 'POST', body: JSON.stringify(data) });
+  },
+
+  updateCategory(id, data) {
+    return this.request(`/categorias/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  },
+
+  toggleCategoryStatus(id, estatus) {
+    return this.request(`/categorias/${encodeURIComponent(id)}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ estatus })
+    });
+  },
+
+  // Productos y servicios
+  getProducts(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.q) params.append('q', filters.q);
+    if (filters.estatus !== undefined && filters.estatus !== '') params.append('estatus', filters.estatus);
+    if (filters.id_categoria) params.append('id_categoria', filters.id_categoria);
+    if (filters.tipo) params.append('tipo', filters.tipo);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/productos${qs}`);
+  },
+
+  getProductStats() {
+    return this.request('/productos/stats');
+  },
+
+  getProductCategories() {
+    return this.request('/productos/categorias');
+  },
+
+  getProductById(id) {
+    return this.request(`/productos/${encodeURIComponent(id)}`);
+  },
+
+  getProductOperations(id) {
+    return this.request(`/productos/${encodeURIComponent(id)}/operaciones`);
+  },
+
+  createProduct(data) {
+    return this.request('/productos', { method: 'POST', body: JSON.stringify(data) });
+  },
+
+  updateProduct(id, data) {
+    return this.request(`/productos/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  },
+
+  toggleProductStatus(id, estatus) {
+    return this.request(`/productos/${encodeURIComponent(id)}/status`, {
+      method: 'PATCH',
+      body: JSON.stringify({ estatus })
+    });
+  },
+
+  deleteProduct(id) {
+    return this.request(`/productos/${encodeURIComponent(id)}`, { method: 'DELETE' });
   }
 };
+

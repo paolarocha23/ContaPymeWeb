@@ -229,7 +229,6 @@ export default function ClientesView() {
             <table className="table-clean">
               <thead>
                 <tr>
-                  <th>ID</th>
                   <th>NOMBRE COMPLETO</th>
                   <th>CIUDAD Y ESTADO</th>
                   <th>TELÉFONO</th>
@@ -241,7 +240,6 @@ export default function ClientesView() {
               <tbody>
                 {visibles.map((c) => (
                   <tr key={c.id}>
-                    <td style={{ color: '#142A95', fontWeight: 700 }}>{c.codigo}</td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                         <span className="user-avatar-initials" style={{ background: '#E8ECFB', color: '#142A95' }}>
@@ -297,7 +295,7 @@ export default function ClientesView() {
                 ))}
                 {visibles.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="cli-empty">
+                    <td colSpan={6} className="cli-empty">
                       {hayFiltros ? 'No se encontraron clientes con esos filtros.' : 'Aún no hay clientes registrados.'}
                     </td>
                   </tr>
