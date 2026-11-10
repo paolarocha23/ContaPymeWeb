@@ -355,6 +355,7 @@ export const api = {
     });
   },
 
+  
   // Productos y servicios
   getProducts(filters = {}) {
     const params = new URLSearchParams();
@@ -401,7 +402,64 @@ export const api = {
   },
 
   deleteProduct(id) {
-    return this.request(`/productos/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    return this.request(`/productos/${encodeURIComponent(id)}`, {
+      method: 'DELETE'
+    });
+  },
+
+  // Gastos
+  getGastos(filtros = {}) {
+    const params = new URLSearchParams();
+
+    if (filtros.fecha_inicio) {
+      params.append('fecha_inicio', filtros.fecha_inicio);
+    }
+
+    if (filtros.fecha_fin) {
+      params.append('fecha_fin', filtros.fecha_fin);
+    }
+
+    if (filtros.id_categoria) {
+      params.append('id_categoria', filtros.id_categoria);
+    }
+
+    if (filtros.concepto) {
+      params.append('concepto', filtros.concepto);
+    }
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/gastos${query}`);
+  },
+
+  getGasto(id) {
+    return this.request(`/gastos/${id}`);
+  },
+
+  getCategoriasGastos() {
+    return this.request('/gastos/categorias');
+  },
+
+  getResumenGastos() {
+    return this.request('/gastos/resumen');
+  },
+
+  crearGasto(datos) {
+    return this.request('/gastos', {
+      method: 'POST',
+      body: JSON.stringify(datos)
+    });
+  },
+
+  actualizarGasto(id, datos) {
+    return this.request(`/gastos/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(datos)
+    });
+  },
+
+  cancelarGasto(id) {
+    return this.request(`/gastos/${id}/cancelar`, {
+      method: 'PATCH'
+    });
   }
 };
-

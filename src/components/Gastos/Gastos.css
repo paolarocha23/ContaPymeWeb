@@ -1,0 +1,54 @@
+
+.gastos {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.gastos-small {
+  color: #94a3b8;
+  font-size: 0.78rem;
+  margin-top: 3px;
+}
+
+.gastos-modal {
+  width: min(650px, calc(100% - 32px));
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.gastos-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.gastos-full {
+  grid-column: 1 / -1;
+}
+
+.gastos-form-grid textarea {
+  resize: vertical;
+  min-height: 85px;
+}
+
+.gastos .table-clean {
+  min-width: 950px;
+}
+
+.gastos .alert button {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+}
+
+@media (max-width: 650px) {
+  .gastos-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .gastos-full {
+    grid-column: auto;
+  }
+}
