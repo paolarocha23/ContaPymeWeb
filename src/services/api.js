@@ -402,6 +402,58 @@ export const api = {
 
   deleteProduct(id) {
     return this.request(`/productos/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  },
+
+  // Inventario
+  getInventory(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.q) params.append('q', filters.q);
+    if (filters.estatus !== undefined && filters.estatus !== '') params.append('estatus', filters.estatus);
+    if (filters.id_categoria) params.append('id_categoria', filters.id_categoria);
+    if (filters.estado) params.append('estado', filters.estado); // disponible | bajo | sin_stock
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/inventario${qs}`);
+  },
+ 
+  getInventoryStats() {
+    return this.request('/inventario/stats');
+  },
+ 
+  getInventoryCategories() {
+    return this.request('/inventario/categorias');
+  },
+ 
+  getInventoryLowStock() {
+    return this.request('/inventario/stock-bajo');
+  },
+ 
+  getInventoryMovements(filters = {}) {
+    const params = new URLSearchParams();
+    ['q', 'id_producto', 'tipo_movimiento', 'origen', 'desde', 'hasta', 'pagina', 'limite'].forEach((k) => {
+      if (filters[k] !== undefined && filters[k] !== '') params.append(k, filters[k]);
+    });
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/inventario/movimientos${qs}`);
+  },
+ 
+  getInventoryProduct(id) {
+    return this.request(`/inventario/${encodeURIComponent(id)}`);
+  },
+ 
+  // { id_producto, cantidad, motivo }
+  createInventoryEntry(data) {
+    return this.request('/inventario/entradas', { method: 'POST', body: JSON.stringify(data) });
+  },
+ 
+  // { id_producto, cantidad, motivo }
+  createInventoryExit(data) {
+    return this.request('/inventario/salidas', { method: 'POST', body: JSON.stringify(data) });
+  },
+ 
+  // { id_producto, existencia_real, motivo }
+  createInventoryAdjustment(data) {
+    return this.request('/inventario/ajustes', { method: 'POST', body: JSON.stringify(data) });
   }
+
 };
 

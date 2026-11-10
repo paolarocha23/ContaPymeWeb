@@ -16,6 +16,7 @@ import CuentasPorPagarView from './components/CuentasPorPagar/CuentasPorPagarVie
 import { useInactivityTimer } from './hooks/useInactivityTimer';
 import CategoriasView from './components/Categorias/CategoriasView';
 import ProductosView from './components/ProductosyServicio/ProductosView';
+import InventarioView from './components/Inventario/InventarioView';
 import { api } from './services/api';
 
 export default function App() {
@@ -124,6 +125,8 @@ export default function App() {
     contactos: 'Catálogo de clientes',
     categorias: 'Catálogo de categorías',
     productos: 'Catálogo de productos y servicios',
+    inventario: 'Existencias y movimientos',
+
   };
 
   // Vistas que ya tienen pantalla propia (el resto muestra el placeholder)
@@ -136,8 +139,11 @@ export default function App() {
     activeView === 'admin' ||
     activeView === 'categorias' ||
     activeView === 'productos' ||
+    activeView === 'inventario' ||
     isClientes || isProveedores ||
     isCuentasPorPagar;
+   
+
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -209,6 +215,7 @@ export default function App() {
             {isCuentasPorPagar && <CuentasPorPagarView />}
             {activeView === 'categorias' && <CategoriasView />}
             {activeView === 'productos' && <ProductosView />}
+            {activeView === 'inventario' && <InventarioView />}
 
             {!hasOwnView && (
               <section className="cpy-module-placeholder">

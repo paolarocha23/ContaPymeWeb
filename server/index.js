@@ -10,6 +10,7 @@ import cuentasPorPagarRoutes from './routes/cuentasPorPagarRoutes.js';
 import categoriaRoutes from './routes/categoriaRoutes.js';
 import proveedorRoutes from './routes/proveedorRoutes.js';
 import productoRoutes from './routes/productoRoutes.js';
+import inventarioRoutes from './routes/inventarioRoutes.js';
 import { initializeDatabase } from './config/init_db.js';
 
 dotenv.config();
@@ -122,7 +123,18 @@ app.get('/api', (req, res) => {
         resumen: 'GET /api/cxp/resumen',
         get: 'GET /api/cxp/:id',
         pagos: 'GET /api/cxp/:id/pagos'
-      }
+      },
+      inventario: {
+  list: 'GET /api/inventario',
+  stats: 'GET /api/inventario/stats',
+  categorias: 'GET /api/inventario/categorias',
+  stockBajo: 'GET /api/inventario/stock-bajo',
+  movimientos: 'GET /api/inventario/movimientos',
+  get: 'GET /api/inventario/:id',
+  entradas: 'POST /api/inventario/entradas',
+  salidas: 'POST /api/inventario/salidas',
+  ajustes: 'POST /api/inventario/ajustes'
+}
     }
   });
 });
@@ -139,6 +151,7 @@ app.use('/api/proveedores', proveedorRoutes);
 app.use('/api/suppliers', proveedorRoutes); // Alias en inglés
 app.use('/api/categorias', categoriaRoutes);
 app.use('/api/productos', productoRoutes);
+app.use('/api/inventario', inventarioRoutes);
 
 // Manejador de rutas no encontradas 404 para la API
 app.use((req, res, next) => {
