@@ -21,6 +21,8 @@ import Layout from './components/Layuot/Layout';
 import Dashboard from './components/Dashboard/Dashboard';
 import CuentasPorPagarView from './components/CuentasPorPagar/CuentasPorPagarView';
 import GastosView from './components/Gastos/GastosView';
+import InventarioView from './components/Inventario/InventarioView';
+
 
 import { useInactivityTimer } from './hooks/useInactivityTimer';
 import { api } from './services/api';
@@ -159,10 +161,12 @@ export default function App() {
     clientes: 'Catálogo de clientes',
     contactos: 'Catálogo de clientes',
     proveedores: 'Catálogo de proveedores',
-    categorias: 'Administra las categorías de tus productos',
-    productos: 'Administra tus productos y servicios',
     cxp: 'Control de cuentas por pagar',
-    gastos: 'Registro y control de gastos'
+    gastos: 'Registro y control de gastos',
+    categorias: 'Catálogo de categorías',
+    productos: 'Catálogo de productos y servicios',
+    inventario: 'Existencias y movimientos',
+
   };
 
   // Identificar pantallas con componentes propios
@@ -183,7 +187,14 @@ export default function App() {
     isCategorias ||
     isProductos ||
     isCuentasPorPagar ||
-    isGastos;
+    isGastos ||
+    activeView === 'categorias' ||
+    activeView === 'productos' ||
+    activeView === 'inventario' ||
+    isClientes || isProveedores ||
+    isCuentasPorPagar;
+   
+
 
   return (
     <div
@@ -297,6 +308,10 @@ export default function App() {
             {isCuentasPorPagar && <CuentasPorPagarView />}
 
             {isGastos && <GastosView />}
+
+            {activeView === 'categorias' && <CategoriasView />}
+            {activeView === 'productos' && <ProductosView />}
+            {activeView === 'inventario' && <InventarioView />}
 
             {!hasOwnView && (
               <section className="cpy-module-placeholder">

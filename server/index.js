@@ -13,7 +13,7 @@ import categoriaRoutes from './routes/categoriaRoutes.js';
 import proveedorRoutes from './routes/proveedorRoutes.js';
 import productoRoutes from './routes/productoRoutes.js';
 import gastosRoutes from './routes/gastosRoutes.js';
-
+import inventarioRoutes from './routes/inventarioRoutes.js';
 import { initializeDatabase } from './config/init_db.js';
 
 dotenv.config();
@@ -147,7 +147,19 @@ app.get('/api', (req, res) => {
 
       bitacora: {
         list: 'GET /api/bitacora'
-      }
+      },
+
+      inventario: {
+  list: 'GET /api/inventario',
+  stats: 'GET /api/inventario/stats',
+  categorias: 'GET /api/inventario/categorias',
+  stockBajo: 'GET /api/inventario/stock-bajo',
+  movimientos: 'GET /api/inventario/movimientos',
+  get: 'GET /api/inventario/:id',
+  entradas: 'POST /api/inventario/entradas',
+  salidas: 'POST /api/inventario/salidas',
+  ajustes: 'POST /api/inventario/ajustes'
+}
     }
   });
 });
@@ -165,6 +177,7 @@ app.use('/api/suppliers', proveedorRoutes);
 
 app.use('/api/categorias', categoriaRoutes);
 app.use('/api/productos', productoRoutes);
+app.use('/api/inventario', inventarioRoutes);
 
 app.use('/api/bitacora', bitacoraRoutes);
 app.use('/api/cxp', cuentasPorPagarRoutes);

@@ -411,21 +411,10 @@ export const api = {
   getGastos(filtros = {}) {
     const params = new URLSearchParams();
 
-    if (filtros.fecha_inicio) {
-      params.append('fecha_inicio', filtros.fecha_inicio);
-    }
-
-    if (filtros.fecha_fin) {
-      params.append('fecha_fin', filtros.fecha_fin);
-    }
-
-    if (filtros.id_categoria) {
-      params.append('id_categoria', filtros.id_categoria);
-    }
-
-    if (filtros.concepto) {
-      params.append('concepto', filtros.concepto);
-    }
+    if (filtros.fecha_inicio) params.append('fecha_inicio', filtros.fecha_inicio);
+    if (filtros.fecha_fin) params.append('fecha_fin', filtros.fecha_fin);
+    if (filtros.id_categoria) params.append('id_categoria', filtros.id_categoria);
+    if (filtros.concepto) params.append('concepto', filtros.concepto);
 
     const query = params.toString() ? `?${params.toString()}` : '';
     return this.request(`/gastos${query}`);
@@ -461,5 +450,71 @@ export const api = {
     return this.request(`/gastos/${id}/cancelar`, {
       method: 'PATCH'
     });
+  },
+
+  // Inventario
+  getInventory(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.q) params.append('q', filters.q);
+    if (filters.estatus !== undefined && filters.estatus !== '') {
+      params.append('estatus', filters.estatus);
+    }
+    if (filters.id_categoria) params.append('id_categoria', filters.id_categoria);
+    if (filters.estado) params.append('estado', filters.estado);
+
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/inventario${qs}`);
+  },
+
+  getInventoryStats() {
+    return this.request('/inventario/stats');
+  },
+
+  getInventoryCategories() {
+    return this.request('/inventario/categorias');
+  },
+
+  getInventoryLowStock() {
+    return this.request('/inventario/stock-bajo');
+  },
+
+  getInventoryMovements(filters = {}) {
+    const params = new URLSearchParams();
+
+    ['q', 'id_producto', 'tipo_movimiento', 'origen', 'desde', 'hasta', 'pagina', 'limite']
+      .forEach((k) => {
+        if (filters[k] !== undefined && filters[k] !== '') {
+          params.append(k, filters[k]);
+        }
+      });
+
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/inventario/movimientos${qs}`);
+  },
+
+  getInventoryProduct(id) {
+    return this.request(`/inventario/${encodeURIComponent(id)}`);
+  },
+
+  createInventoryEntry(data) {
+    return this.request('/inventario/entradas', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  createInventoryExit(data) {
+    return this.request('/inventario/salidas', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  createInventoryAdjustment(data) {
+    return this.request('/inventario/ajustes', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
   }
+
 };
