@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 
 import LoginView from './components/Login/LoginView';
@@ -18,11 +17,11 @@ import CategoriasView from './components/Categorias/CategoriasView';
 import ProductosView from './components/ProductosyServicio/ProductosView';
 
 import Layout from './components/Layuot/Layout';
+import LandingView from './components/landing/LandingView';
 import Dashboard from './components/Dashboard/Dashboard';
 import CuentasPorPagarView from './components/CuentasPorPagar/CuentasPorPagarView';
 import GastosView from './components/Gastos/GastosView';
 import InventarioView from './components/Inventario/InventarioView';
-
 
 import { useInactivityTimer } from './hooks/useInactivityTimer';
 import { api } from './services/api';
@@ -31,6 +30,9 @@ export default function App() {
   const [user, setUser] = useState(() => api.getUser());
   const [currentTab, setCurrentTab] = useState('usuarios');
   const [activeView, setActiveView] = useState('dashboard');
+
+  // false = se muestra la landing, true = se muestra el login
+  const [showLogin, setShowLogin] = useState(false);
 
   const [twoFactorData, setTwoFactorData] = useState(null);
   const [showForgotModal, setShowForgotModal] = useState(false);
@@ -49,6 +51,7 @@ export default function App() {
     }
 
     setUser(null);
+    setShowLogin(true);
     setSessionExpiredNotice(
       'Tu sesión se cerró automáticamente debido a 15 minutos de inactividad.'
     );
@@ -70,6 +73,7 @@ export default function App() {
   useEffect(() => {
     const handleAuthExpired = (e) => {
       setUser(null);
+      setShowLogin(true);
       setSessionExpiredNotice(
         e.detail || 'Tu sesión ha expirado o tu usuario fue desactivado.'
       );
@@ -89,12 +93,23 @@ export default function App() {
 
     if (token) {
       setResetModalToken(token);
+      setShowLogin(true);
       window.history.replaceState(
         {},
         document.title,
         window.location.pathname
       );
     }
+  }, []);
+
+  // Flecha de atrás/adelante del navegador: login <-> landing
+  useEffect(() => {
+    const handlePopState = (e) => {
+      setShowLogin(e.state?.view === 'login');
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   // Cierre de sesión manual
@@ -108,6 +123,7 @@ export default function App() {
 
       setUser(null);
       setSessionExpiredNotice('');
+      setShowLogin(false); // regresa a la landing
     }
   };
 
@@ -117,6 +133,22 @@ export default function App() {
     setActiveView('dashboard');
     setTwoFactorData(null);
     setSessionExpiredNotice('');
+    setShowLogin(false);
+  };
+
+  // Abrir el login y registrarlo en el historial del navegador
+  const openLogin = () => {
+    window.history.pushState({ view: 'login' }, '', window.location.pathname);
+    setShowLogin(true);
+  };
+
+  // Volver a la landing (si el login se abrió desde la landing, usa el historial)
+  const goToLanding = () => {
+    if (window.history.state?.view === 'login') {
+      window.history.back();
+    } else {
+      setShowLogin(false);
+    }
   };
 
   // Navegación
@@ -165,19 +197,18 @@ export default function App() {
     gastos: 'Registro y control de gastos',
     categorias: 'Catálogo de categorías',
     productos: 'Catálogo de productos y servicios',
-    inventario: 'Existencias y movimientos',
-
+    inventario: 'Existencias y movimientos'
   };
 
   // Identificar pantallas con componentes propios
   const isClientes =
     activeView === 'clientes' || activeView === 'contactos';
-
   const isProveedores = activeView === 'proveedores';
   const isCategorias = activeView === 'categorias';
   const isProductos = activeView === 'productos';
   const isCuentasPorPagar = activeView === 'cxp';
   const isGastos = activeView === 'gastos';
+  const isInventario = activeView === 'inventario';
 
   const hasOwnView =
     activeView === 'dashboard' ||
@@ -188,13 +219,7 @@ export default function App() {
     isProductos ||
     isCuentasPorPagar ||
     isGastos ||
-    activeView === 'categorias' ||
-    activeView === 'productos' ||
-    activeView === 'inventario' ||
-    isClientes || isProveedores ||
-    isCuentasPorPagar;
-   
-
+    isInventario;
 
   return (
     <div
@@ -204,7 +229,11 @@ export default function App() {
         flexDirection: 'column'
       }}
     >
-      {!isAuthenticated ? (
+      {!isAuthenticated && !showLogin ? (
+        /* ───── Landing ───── */
+        <LandingView onLogin={openLogin} />
+      ) : !isAuthenticated ? (
+        /* ───── Login ───── */
         <>
           <LoginView
             onRequire2FA={(data) => setTwoFactorData(data)}
@@ -242,6 +271,7 @@ export default function App() {
           )}
         </>
       ) : (
+        /* ───── Sistema (sesión iniciada) ───── */
         <>
           <Layout
             user={user}
@@ -298,20 +328,12 @@ export default function App() {
             )}
 
             {isClientes && <ClientesView />}
-
             {isProveedores && <ProveedoresView />}
-
             {isCategorias && <CategoriasView />}
-
             {isProductos && <ProductosView />}
-
             {isCuentasPorPagar && <CuentasPorPagarView />}
-
             {isGastos && <GastosView />}
-
-            {activeView === 'categorias' && <CategoriasView />}
-            {activeView === 'productos' && <ProductosView />}
-            {activeView === 'inventario' && <InventarioView />}
+            {isInventario && <InventarioView />}
 
             {!hasOwnView && (
               <section className="cpy-module-placeholder">
