@@ -7,7 +7,11 @@ import {
   cancelarGasto,
   obtenerResumenGastos
 } from '../repositories/gastosRepository.js';
+import pool from '../config/db.js';
 
+import {
+  registrarMovimientoCaja
+} from '../repositories/gastosRepository.js';
 function validarGasto(datos) {
   const {
     concepto,
@@ -66,36 +70,147 @@ export async function listarCategoriasGastos() {
 export async function crearGasto(datos, id_usuario) {
   validarGasto(datos);
 
-  return await registrarGasto({
-    ...datos,
-    concepto: datos.concepto.trim(),
-    id_usuario
-  });
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const gasto = await registrarGasto({
+      ...datos,
+      concepto: datos.concepto.trim(),
+      id_usuario
+    }, client);
+
+    // Solo los gastos en efectivo afectan Caja
+    if (datos.forma_pago === 'efectivo') {
+      await registrarMovimientoCaja({
+        fecha: gasto.fecha,
+        tipo: 'salida',
+        concepto: gasto.concepto,
+        monto: gasto.monto,
+        origen: 'gasto',
+        id_referencia: gasto.id_gasto,
+        id_usuario
+      }, client);
+    }
+
+    await client.query('COMMIT');
+
+    return gasto;
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+
+  } finally {
+    client.release();
+  }
 }
 
 export async function modificarGasto(id, datos) {
   validarGasto(datos);
 
-  const gasto = await actualizarGasto(id, {
-    ...datos,
-    concepto: datos.concepto.trim()
-  });
+  const client = await pool.connect();
 
-  if (!gasto) {
-    throw new Error('No se encontró el gasto o ya está cancelado');
+  try {
+    await client.query('BEGIN');
+
+    const gastoAnterior = await obtenerGastoPorId(id, client, true);
+
+    if (!gastoAnterior || gastoAnterior.estatus !== 'activo') {
+      throw new Error('No se encontró el gasto o ya está cancelado');
+    }
+
+    const gastoActualizado = await actualizarGasto(id, {
+      ...datos,
+      concepto: datos.concepto.trim()
+    }, client);
+
+    if (!gastoActualizado) {
+      throw new Error('No se pudo actualizar el gasto');
+    }
+
+    // Revertir el movimiento anterior si fue pagado en efectivo
+    if (gastoAnterior.forma_pago === 'efectivo') {
+      await registrarMovimientoCaja({
+        fecha: new Date(),
+        tipo: 'entrada',
+        concepto: `Reversión de gasto: ${gastoAnterior.concepto}`,
+        monto: gastoAnterior.monto,
+        origen: 'gasto',
+        id_referencia: gastoAnterior.id_gasto,
+        id_usuario: gastoAnterior.id_usuario
+      }, client);
+    }
+
+    // Registrar la nueva salida si el gasto actualizado es en efectivo
+    if (gastoActualizado.forma_pago === 'efectivo') {
+      await registrarMovimientoCaja({
+        fecha: new Date(),
+        tipo: 'salida',
+        concepto: gastoActualizado.concepto,
+        monto: gastoActualizado.monto,
+        origen: 'gasto',
+        id_referencia: gastoActualizado.id_gasto,
+        id_usuario: gastoActualizado.id_usuario
+      }, client);
+    }
+
+    await client.query('COMMIT');
+
+    return gastoActualizado;
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+
+  } finally {
+    client.release();
   }
-
-  return gasto;
 }
 
 export async function darDeBajaGasto(id) {
-  const gasto = await cancelarGasto(id);
+  const client = await pool.connect();
 
-  if (!gasto) {
-    throw new Error('No se encontró el gasto o ya está cancelado');
+  try {
+    await client.query('BEGIN');
+
+    const gastoAnterior = await obtenerGastoPorId(id, client, true);
+
+    if (!gastoAnterior || gastoAnterior.estatus !== 'activo') {
+      throw new Error('No se encontró el gasto o ya está cancelado');
+    }
+
+    const gastoCancelado = await cancelarGasto(id, client);
+
+    if (!gastoCancelado) {
+      throw new Error('No se pudo cancelar el gasto');
+    }
+
+    // Devolver el dinero a Caja si el gasto fue en efectivo
+    if (gastoAnterior.forma_pago === 'efectivo') {
+      await registrarMovimientoCaja({
+        fecha: new Date(),
+        tipo: 'entrada',
+        concepto: `Reversión por cancelación de gasto: ${gastoAnterior.concepto}`,
+        monto: gastoAnterior.monto,
+        origen: 'gasto',
+        id_referencia: gastoAnterior.id_gasto,
+        id_usuario: gastoAnterior.id_usuario
+      }, client);
+    }
+
+    await client.query('COMMIT');
+
+    return gastoCancelado;
+
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+
+  } finally {
+    client.release();
   }
-
-  return gasto;
 }
 
 export async function consultarResumenGastos() {

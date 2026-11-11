@@ -22,6 +22,7 @@ import Dashboard from './components/Dashboard/Dashboard';
 import CuentasPorPagarView from './components/CuentasPorPagar/CuentasPorPagarView';
 import GastosView from './components/Gastos/GastosView';
 import InventarioView from './components/Inventario/InventarioView';
+import CajaView from './components/Caja/CajaView';
 
 import { useInactivityTimer } from './hooks/useInactivityTimer';
 import { api } from './services/api';
@@ -209,6 +210,7 @@ export default function App() {
   const isCuentasPorPagar = activeView === 'cxp';
   const isGastos = activeView === 'gastos';
   const isInventario = activeView === 'inventario';
+  const isCaja = activeView === 'caja';
 
   const hasOwnView =
     activeView === 'dashboard' ||
@@ -219,7 +221,8 @@ export default function App() {
     isProductos ||
     isCuentasPorPagar ||
     isGastos ||
-    isInventario;
+    isInventario ||
+    isCaja;
 
   return (
     <div
@@ -334,6 +337,7 @@ export default function App() {
             {isCuentasPorPagar && <CuentasPorPagarView />}
             {isGastos && <GastosView />}
             {isInventario && <InventarioView />}
+            {activeView === 'caja' && <CajaView />}
 
             {!hasOwnView && (
               <section className="cpy-module-placeholder">

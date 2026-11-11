@@ -1,5 +1,46 @@
-
 import pool from '../config/db.js';
+
+// Registrar un movimiento de Caja
+export async function registrarMovimientoCaja(datos, client = pool) {
+  const {
+    fecha,
+    tipo,
+    concepto,
+    monto,
+    origen,
+    id_referencia,
+    id_usuario
+  } = datos;
+
+  const consulta = `
+    INSERT INTO movimientos_caja (
+      fecha,
+      tipo,
+      concepto,
+      monto,
+      origen,
+      id_referencia,
+      id_usuario
+    )
+    VALUES (
+      COALESCE($1::timestamp, CURRENT_TIMESTAMP),
+      $2, $3, $4, $5, $6, $7
+    )
+    RETURNING *
+  `;
+
+  const { rows } = await client.query(consulta, [
+    fecha || null,
+    tipo,
+    concepto,
+    monto,
+    origen,
+    id_referencia || null,
+    id_usuario
+  ]);
+
+  return rows[0];
+}
 
 // Consultar todos los gastos
 export async function obtenerGastos(filtros = {}) {
@@ -61,7 +102,7 @@ export async function obtenerGastos(filtros = {}) {
 }
 
 // Consultar un gasto por su ID
-export async function obtenerGastoPorId(id) {
+export async function obtenerGastoPorId(id, client = pool, bloquear = false) {
   const consulta = `
     SELECT
       g.id_gasto,
@@ -78,9 +119,10 @@ export async function obtenerGastoPorId(id) {
     INNER JOIN categorias c
       ON c.id_categoria = g.id_categoria
     WHERE g.id_gasto = $1
+    ${bloquear ? 'FOR UPDATE OF g' : ''}
   `;
 
-  const { rows } = await pool.query(consulta, [id]);
+  const { rows } = await client.query(consulta, [id]);
   return rows[0] || null;
 }
 
@@ -141,7 +183,7 @@ export async function registrarGasto(datos, client = pool) {
 }
 
 // Modificar un gasto
-export async function actualizarGasto(id, datos) {
+export async function actualizarGasto(id, datos, client = pool) {
   const {
     fecha,
     concepto,
@@ -165,7 +207,7 @@ export async function actualizarGasto(id, datos) {
     RETURNING *
   `;
 
-  const { rows } = await pool.query(consulta, [
+  const { rows } = await client.query(consulta, [
     fecha,
     concepto,
     id_categoria,
@@ -179,7 +221,7 @@ export async function actualizarGasto(id, datos) {
 }
 
 // Cancelar un gasto
-export async function cancelarGasto(id) {
+export async function cancelarGasto(id, client = pool) {
   const consulta = `
     UPDATE gastos
     SET estatus = 'cancelado'
@@ -188,10 +230,10 @@ export async function cancelarGasto(id) {
     RETURNING *
   `;
 
-  const { rows } = await pool.query(consulta, [id]);
+  const { rows } = await client.query(consulta, [id]);
+
   return rows[0] || null;
 }
-
 // Consultar resumen de gastos
 export async function obtenerResumenGastos() {
   const consulta = `
