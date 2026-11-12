@@ -515,6 +515,48 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data)
     });
+  },
+
+  // Ingresos
+  getIncomes(filters = {}) {
+    const params = new URLSearchParams();
+    ['q', 'desde', 'hasta', 'id_categoria', 'origen', 'forma_pago', 'estatus'].forEach((k) => {
+      if (filters[k] !== undefined && filters[k] !== '') params.append(k, filters[k]);
+    });
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return this.request(`/ingresos${qs}`);
+  },
+
+  getIncomeStats() {
+    return this.request('/ingresos/stats');
+  },
+
+  getIncomeCategories() {
+    return this.request('/ingresos/categorias');
+  },
+
+  getIncomeById(id) {
+    return this.request(`/ingresos/${encodeURIComponent(id)}`);
+  },
+
+  // { concepto, id_categoria, fecha, monto, forma_pago, origen: 'otro' }
+  createIncome(data) {
+    return this.request('/ingresos', { method: 'POST', body: JSON.stringify(data) });
+  },
+
+  updateIncome(id, data) {
+    return this.request(`/ingresos/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    });
+  },
+
+  // motivo opcional (queda en bitácora)
+  cancelIncome(id, motivo = '') {
+    return this.request(`/ingresos/${encodeURIComponent(id)}/cancelar`, {
+      method: 'PATCH',
+      body: JSON.stringify({ motivo })
+    });
   }
 
 };

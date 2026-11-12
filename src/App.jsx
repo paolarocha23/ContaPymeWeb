@@ -21,7 +21,9 @@ import Layout from './components/Layuot/Layout';
 import Dashboard from './components/Dashboard/Dashboard';
 import CuentasPorPagarView from './components/CuentasPorPagar/CuentasPorPagarView';
 import GastosView from './components/Gastos/GastosView';
+
 import InventarioView from './components/Inventario/InventarioView';
+import IngresosView from './components/Ingresos/IngresosView';
 
 
 import { useInactivityTimer } from './hooks/useInactivityTimer';
@@ -152,7 +154,9 @@ export default function App() {
     cxp: 'Cuentas por pagar',
     gastos: 'Gastos',
     caja: 'Caja / Efectivo',
-    cxc: 'Cuentas por cobrar'
+    cxc: 'Cuentas por cobrar',
+    ingresos: 'Finanzas',
+
   };
 
   // Subtítulos de las pantallas
@@ -166,6 +170,8 @@ export default function App() {
     categorias: 'Catálogo de categorías',
     productos: 'Catálogo de productos y servicios',
     inventario: 'Existencias y movimientos',
+    ingresos: 'Registro y consulta de ingresos',
+
 
   };
 
@@ -191,6 +197,7 @@ export default function App() {
     activeView === 'categorias' ||
     activeView === 'productos' ||
     activeView === 'inventario' ||
+    activeView === 'ingresos' ||
     isClientes || isProveedores ||
     isCuentasPorPagar;
    
@@ -311,7 +318,9 @@ export default function App() {
 
             {activeView === 'categorias' && <CategoriasView />}
             {activeView === 'productos' && <ProductosView />}
+            
             {activeView === 'inventario' && <InventarioView />}
+            {activeView === 'ingresos' && <IngresosView />}
 
             {!hasOwnView && (
               <section className="cpy-module-placeholder">

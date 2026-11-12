@@ -14,6 +14,7 @@ import proveedorRoutes from './routes/proveedorRoutes.js';
 import productoRoutes from './routes/productoRoutes.js';
 import gastosRoutes from './routes/gastosRoutes.js';
 import inventarioRoutes from './routes/inventarioRoutes.js';
+import ingresoRoutes from './routes/ingresoRoutes.js';
 import { initializeDatabase } from './config/init_db.js';
 
 dotenv.config();
@@ -150,16 +151,28 @@ app.get('/api', (req, res) => {
       },
 
       inventario: {
-  list: 'GET /api/inventario',
-  stats: 'GET /api/inventario/stats',
-  categorias: 'GET /api/inventario/categorias',
-  stockBajo: 'GET /api/inventario/stock-bajo',
-  movimientos: 'GET /api/inventario/movimientos',
-  get: 'GET /api/inventario/:id',
-  entradas: 'POST /api/inventario/entradas',
-  salidas: 'POST /api/inventario/salidas',
-  ajustes: 'POST /api/inventario/ajustes'
-}
+        list: 'GET /api/inventario',
+        stats: 'GET /api/inventario/stats',
+        categorias: 'GET /api/inventario/categorias',
+        stockBajo: 'GET /api/inventario/stock-bajo',
+        movimientos: 'GET /api/inventario/movimientos',
+        get: 'GET /api/inventario/:id',
+        entradas: 'POST /api/inventario/entradas',
+        salidas: 'POST /api/inventario/salidas',
+        ajustes: 'POST /api/inventario/ajustes'
+      },
+
+      ingresos: {
+        list: 'GET /api/ingresos',
+        stats: 'GET /api/ingresos/stats',
+        categorias: 'GET /api/ingresos/categorias',
+        get: 'GET /api/ingresos/:id',
+        create: 'POST /api/ingresos',
+        update: 'PUT /api/ingresos/:id',
+        cancel: 'PATCH /api/ingresos/:id/cancelar'
+      }
+
+      
     }
   });
 });
@@ -177,7 +190,9 @@ app.use('/api/suppliers', proveedorRoutes);
 
 app.use('/api/categorias', categoriaRoutes);
 app.use('/api/productos', productoRoutes);
+
 app.use('/api/inventario', inventarioRoutes);
+app.use('/api/ingresos', ingresoRoutes);
 
 app.use('/api/bitacora', bitacoraRoutes);
 app.use('/api/cxp', cuentasPorPagarRoutes);
