@@ -2,7 +2,8 @@ import {
     obtenerCuentas as consultarCuentas,
     obtenerCuentaPorId as consultarCuentaPorId,
     obtenerPagos as consultarPagos,
-    obtenerResumen as consultarResumen
+    obtenerResumen as consultarResumen,
+    registrarPago as registrarNuevoPago
 } from '../services/cuentasPorPagarService.js';
 
 export const obtenerCuentas = async (req, res) => {
@@ -51,5 +52,23 @@ export const obtenerResumen = async (req, res) => {
         success: true,
         message: 'Resumen de cuentas por pagar obtenido correctamente.',
         data: resumen
+    });
+};
+
+// Registrar un pago parcial o total de una cuenta por pagar
+export const registrarPago = async (req, res) => {
+    const { id } = req.params;
+    const idUsuario = req.user.id_usuario;
+
+    const resultado = await registrarNuevoPago(
+        id,
+        req.body,
+        idUsuario
+    );
+
+    res.status(201).json({
+        success: true,
+        message: 'Pago registrado correctamente.',
+        data: resultado
     });
 };

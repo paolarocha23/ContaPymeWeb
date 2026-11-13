@@ -4,7 +4,8 @@ import {
     obtenerCuentas,
     obtenerCuentaPorId,
     obtenerPagos,
-    obtenerResumen
+    obtenerResumen,
+    registrarPago
 } from '../controllers/cuentasPorPagarController.js';
 
 import {
@@ -42,6 +43,12 @@ router.get(
 router.get(
     '/:id/pagos',
     asyncHandler(obtenerPagos)
+);
+
+// Registrar un pago parcial o total de CxP.
+router.post(
+    '/:id/pagos',
+    asyncHandler(registrarPago)
 );
 
 export default router;

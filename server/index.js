@@ -17,6 +17,7 @@ import inventarioRoutes from './routes/inventarioRoutes.js';
 import ingresoRoutes from './routes/ingresoRoutes.js';
 import { initializeDatabase } from './config/init_db.js';
 import cajaRoutes from './routes/cajaRoutes.js';
+import { errorHandler } from './utils/http.js';
 
 dotenv.config();
 
@@ -213,17 +214,7 @@ app.use((req, res, next) => {
 });
 
 // Manejador global de errores
-app.use((err, req, res, next) => {
-  console.error('Error no controlado en la aplicación:', err);
-
-  res.status(500).json({
-    success: false,
-    message: 'Ocurrió un error inesperado en el servidor.',
-    error: process.env.NODE_ENV === 'development'
-      ? err.message
-      : undefined
-  });
-});
+app.use(errorHandler);
 
 // Inicializar base de datos y servidor
 initializeDatabase()

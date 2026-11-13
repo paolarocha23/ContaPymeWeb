@@ -5,8 +5,17 @@ export const obtenerCuentas = async ({ estatus, busqueda } = {}) => {
     const valores = [];
 
     if (estatus) {
-        valores.push(estatus);
-        condiciones.push(`cp.estatus = $${valores.length}`);
+        const estado = String(estatus).trim().toLowerCase();
+
+        if (estado === 'vencida') {
+            condiciones.push('cp.saldo_pendiente > 0');
+            condiciones.push('cp.fecha_vencimiento < CURRENT_DATE');
+        } else {
+            valores.push(estado);
+            condiciones.push(
+                `LOWER(cp.estatus) = $${valores.length}`
+            );
+        }
     }
 
     if (busqueda) {
@@ -86,7 +95,7 @@ export const obtenerPagos = async (idCxp) => {
             pg.forma_pago,
             pg.observaciones,
             u.nombre AS nombre_usuario,
-            u.apellidos AS apellidos_usuario
+            TRIM(CONCAT_WS(' ', u.apellido_paterno, u.apellido_materno)) AS apellidos_usuario
         FROM cxp_pagos pg
         INNER JOIN usuarios u
             ON u.id_usuario = pg.id_usuario
@@ -125,4 +134,92 @@ export const obtenerResumen = async () => {
 
     const { rows } = await pool.query(query);
     return rows[0];
+};
+
+
+//Obtener una cuenta bloqueándola durante una transacción
+export const obtenerCuentaParaPago = async (idCxp, client) => {
+    const query = `
+        SELECT
+            id_cxp,
+            id_compra,
+            id_proveedor,
+            monto_original,
+            saldo_pendiente,
+            estatus
+        FROM cuentas_por_pagar
+        WHERE id_cxp = $1
+        FOR UPDATE;
+    `;
+
+    const { rows } = await client.query(query, [idCxp]);
+    return rows[0] || null;
+};
+
+// Registrar un pago en el historial de CxP
+export const registrarPagoCxp = async (datos, client) => {
+    const {
+        id_cxp,
+        fecha,
+        monto,
+        forma_pago,
+        id_usuario,
+        observaciones
+    } = datos;
+
+    const query = `
+        INSERT INTO cxp_pagos (
+            id_cxp,
+            fecha,
+            monto,
+            forma_pago,
+            id_usuario,
+            observaciones
+        )
+        VALUES (
+            $1,
+            COALESCE($2::timestamp, CURRENT_TIMESTAMP),
+            $3,
+            $4,
+            $5,
+            $6
+        )
+        RETURNING *;
+    `;
+
+    const { rows } = await client.query(query, [
+        id_cxp,
+        fecha || null,
+        monto,
+        forma_pago,
+        id_usuario,
+        observaciones || null
+    ]);
+
+    return rows[0];
+};
+
+// Actualizar saldo y estatus después de un pago
+export const actualizarSaldoCxp = async (
+    idCxp,
+    nuevoSaldo,
+    nuevoEstatus,
+    client
+) => {
+    const query = `
+        UPDATE cuentas_por_pagar
+        SET
+            saldo_pendiente = $1,
+            estatus = $2
+        WHERE id_cxp = $3
+        RETURNING *;
+    `;
+
+    const { rows } = await client.query(query, [
+        nuevoSaldo,
+        nuevoEstatus,
+        idCxp
+    ]);
+
+    return rows[0] || null;
 };

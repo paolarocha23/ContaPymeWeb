@@ -1,51 +1,74 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '../services/api';
 
 export function useCuentasPorPagar(filtrosIniciales = {}) {
-  const [cuentas, setCuentas] = useState([]);
-  const [resumen, setResumen] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [filtros, setFiltros] = useState(filtrosIniciales);
+    const [cuentas, setCuentas] = useState([]);
+    const [resumen, setResumen] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [filtros, setFiltros] = useState(filtrosIniciales);
 
-  const cargarCuentas = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
+    const solicitudActual = useRef(0);
 
-      const [respuestaCuentas, respuestaResumen] = await Promise.all([
-        api.getCuentasPorPagar(filtros),
-        api.getResumenCxp()
-      ]);
+    const cargarCuentas = useCallback(async () => {
+        const numeroSolicitud = ++solicitudActual.current;
 
-      setCuentas(respuestaCuentas.data || []);
-      setResumen(respuestaResumen.data || null);
-    } catch (err) {
-      setError(err.message || 'No se pudieron cargar las cuentas por pagar.');
-    } finally {
-      setLoading(false);
-    }
-  }, [filtros]);
+        setLoading(true);
+        setError(null);
 
-  useEffect(() => {
-    cargarCuentas();
-  }, [cargarCuentas]);
+        try {
+            const [respuestaCuentas, respuestaResumen] =
+                await Promise.all([
+                    api.getCuentasPorPagar({
+                        estatus: filtros.estatus || ''
+                    }),
+                    api.getResumenCxp()
+                ]);
 
-  const actualizarFiltros = (nuevosFiltros) => {
-    setFiltros((actuales) => ({
-      ...actuales,
-      ...nuevosFiltros
-    }));
-  };
+            if (numeroSolicitud !== solicitudActual.current) {
+                return;
+            }
 
-  return {
-    cuentas,
-    resumen,
-    loading,
-    error,
-    filtros,
-    actualizarFiltros,
-    recargar: cargarCuentas
-  };
+            setCuentas(respuestaCuentas.data || []);
+            setResumen(respuestaResumen.data || null);
+        } catch (err) {
+            if (numeroSolicitud === solicitudActual.current) {
+                setError(
+                    err.message ||
+                    'No se pudieron cargar las cuentas por pagar.'
+                );
+                setCuentas([]);
+            }
+        } finally {
+            if (numeroSolicitud === solicitudActual.current) {
+                setLoading(false);
+            }
+        }
+    }, [filtros.estatus]);
+
+    useEffect(() => {
+        cargarCuentas();
+
+        return () => {
+            solicitudActual.current++;
+        };
+    }, [cargarCuentas]);
+
+    const actualizarFiltros = (nuevosFiltros) => {
+        setFiltros((actuales) => ({
+            ...actuales,
+            ...nuevosFiltros
+        }));
+    };
+
+    return {
+        cuentas,
+        resumen,
+        loading,
+        error,
+        filtros,
+        actualizarFiltros,
+        recargar: cargarCuentas
+    };
 }

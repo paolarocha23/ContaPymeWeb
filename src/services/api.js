@@ -320,6 +320,13 @@ export const api = {
     return this.request(`/cxp/${id}/pagos`);
   },
 
+  registrarPagoCxp(id, datos) {
+    return this.request(`/cxp/${encodeURIComponent(id)}/pagos`, {
+      method: 'POST',
+      body: JSON.stringify(datos)
+    });
+  },
+
   getResumenCxp() {
     return this.request('/cxp/resumen');
   },
@@ -355,7 +362,7 @@ export const api = {
     });
   },
 
-  
+
   // Productos y servicios
   getProducts(filters = {}) {
     const params = new URLSearchParams();
@@ -559,66 +566,65 @@ export const api = {
   },
 
 
-// CAJA / EFECTIVO
+  // CAJA / EFECTIVO
 
-// Consultar movimientos de Caja
-async getMovimientosCaja(filtros = {}) {
-  const params = new URLSearchParams();
+  // Consultar movimientos de Caja
+  async getMovimientosCaja(filtros = {}) {
+    const params = new URLSearchParams();
 
-  if (filtros.fecha_inicio) {
-    params.append('fecha_inicio', filtros.fecha_inicio);
->>>>>>> 437b9ae41b689d285d060f9d3ea9918f8fe0476b
+    if (filtros.fecha_inicio) {
+      params.append('fecha_inicio', filtros.fecha_inicio);
+    }
+
+    if (filtros.fecha_fin) {
+      params.append('fecha_fin', filtros.fecha_fin);
+    }
+
+    if (filtros.tipo) {
+      params.append('tipo', filtros.tipo);
+    }
+
+    if (filtros.concepto) {
+      params.append('concepto', filtros.concepto);
+    }
+
+    const query = params.toString()
+      ? `?${params.toString()}`
+      : '';
+
+    return this.request(`/caja${query}`);
+  },
+
+  // Consultar un movimiento por ID
+  async getMovimientoCaja(id) {
+    return this.request(`/caja/${id}`);
+  },
+
+  // Registrar entrada o salida manual
+  async crearMovimientoCaja(datos) {
+    return this.request('/caja', {
+      method: 'POST',
+      body: JSON.stringify(datos)
+    });
+  },
+
+  // Consultar resumen de Caja
+  async getResumenCaja(filtros = {}) {
+    const params = new URLSearchParams();
+
+    if (filtros.fecha_inicio) {
+      params.append('fecha_inicio', filtros.fecha_inicio);
+    }
+
+    if (filtros.fecha_fin) {
+      params.append('fecha_fin', filtros.fecha_fin);
+    }
+
+    const query = params.toString()
+      ? `?${params.toString()}`
+      : '';
+
+    return this.request(`/caja/resumen${query}`);
   }
-
-  if (filtros.fecha_fin) {
-    params.append('fecha_fin', filtros.fecha_fin);
-  }
-
-  if (filtros.tipo) {
-    params.append('tipo', filtros.tipo);
-  }
-
-  if (filtros.concepto) {
-    params.append('concepto', filtros.concepto);
-  }
-
-  const query = params.toString()
-    ? `?${params.toString()}`
-    : '';
-
-  return this.request(`/caja${query}`);
-},
-
-// Consultar un movimiento por ID
-async getMovimientoCaja(id) {
-  return this.request(`/caja/${id}`);
-},
-
-// Registrar entrada o salida manual
-async crearMovimientoCaja(datos) {
-  return this.request('/caja', {
-    method: 'POST',
-    body: JSON.stringify(datos)
-  });
-},
-
-// Consultar resumen de Caja
-async getResumenCaja(filtros = {}) {
-  const params = new URLSearchParams();
-
-  if (filtros.fecha_inicio) {
-    params.append('fecha_inicio', filtros.fecha_inicio);
-  }
-
-  if (filtros.fecha_fin) {
-    params.append('fecha_fin', filtros.fecha_fin);
-  }
-
-  const query = params.toString()
-    ? `?${params.toString()}`
-    : '';
-
-  return this.request(`/caja/resumen${query}`);
-}
 };
 

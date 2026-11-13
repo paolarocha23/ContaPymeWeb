@@ -30,11 +30,11 @@ const navigation = [
   {
    
     id: 'finanzas', label: 'Finanzas', icon: Wallet, submenu: [
-        { id: 'ingresos', id: 'ingresos', label: 'Ingresos', icon: HandCoins },
-        { id: 'gastos', id: 'gastos', label: 'Gastos', icon: Receipt },
-        { id: 'caja', id: 'caja', label: 'Caja / Efectivo', icon: Calculator },
-        { id: 'cxc', id: 'cxc', label: 'Cuentas por cobrar', icon: FileClock, badge: '5' },
-        { id: 'cxp', id: 'cxp', label: 'Cuentas por pagar', icon: FileMinus, badge: '2' },
+        { id: 'ingresos', label: 'Ingresos', icon: HandCoins },
+        { id: 'gastos', label: 'Gastos', icon: Receipt },
+        { id: 'caja', label: 'Caja / Efectivo', icon: Calculator },
+        { id: 'cxc', label: 'Cuentas por cobrar', icon: FileClock, badge: '5' },
+        { id: 'cxp', label: 'Cuentas por pagar', icon: FileMinus, badge: '2' },
       ]
  
   },
