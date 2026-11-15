@@ -625,6 +625,113 @@ export const api = {
       : '';
 
     return this.request(`/caja/resumen${query}`);
-  }
-};
+  },
 
+  // REPORTES
+  async getReportesResumen(filtros = {}) {
+    const params = new URLSearchParams();
+
+    if (filtros.fecha_inicio) {
+      params.append('fecha_inicio', filtros.fecha_inicio);
+    }
+
+    if (filtros.fecha_fin) {
+      params.append('fecha_fin', filtros.fecha_fin);
+    }
+
+    const query = params.toString();
+
+    return this.request(
+      `/reportes/resumen${query ? `?${query}` : ''}`
+    );
+  },
+
+  // Obtener el detalle de las ventas.
+  async getReportesDetalleVentas(filtros = {}) {
+    const params = new URLSearchParams();
+
+    if (filtros.fecha_inicio) {
+      params.append('fecha_inicio', filtros.fecha_inicio);
+    }
+
+    if (filtros.fecha_fin) {
+      params.append('fecha_fin', filtros.fecha_fin);
+    }
+
+    const query = params.toString();
+
+    return this.request(
+      `/reportes/ventas/detalle${query ? `?${query}` : ''}`
+    );
+  },
+
+  // Obtener el detalle de las compras.
+  async getReportesDetalleCompras(filtros = {}) {
+    const params = new URLSearchParams();
+
+    if (filtros.fecha_inicio) {
+      params.append('fecha_inicio', filtros.fecha_inicio);
+    }
+
+    if (filtros.fecha_fin) {
+      params.append('fecha_fin', filtros.fecha_fin);
+    }
+
+    const query = params.toString();
+
+    return this.request(
+      `/reportes/compras/detalle${query ? `?${query}` : ''}`
+    );
+  },
+
+  // Obtener el detalle de los ingresos.
+  async getReportesDetalleIngresos(filtros = {}) {
+    const params = new URLSearchParams();
+
+    if (filtros.fecha_inicio) {
+      params.append('fecha_inicio', filtros.fecha_inicio);
+    }
+
+    if (filtros.fecha_fin) {
+      params.append('fecha_fin', filtros.fecha_fin);
+    }
+
+    const query = params.toString();
+
+    return this.request(
+      `/reportes/ingresos/detalle${query ? `?${query}` : ''}`
+    );
+  },
+
+  // Obtener el detalle de los gastos.
+  async getReportesDetalleGastos(filtros = {}) {
+    const params = new URLSearchParams();
+
+    if (filtros.fecha_inicio) {
+      params.append('fecha_inicio', filtros.fecha_inicio);
+    }
+
+    if (filtros.fecha_fin) {
+      params.append('fecha_fin', filtros.fecha_fin);
+    }
+
+    const query = params.toString();
+
+    return this.request(
+      `/reportes/gastos/detalle${query ? `?${query}` : ''}`
+    );
+  },
+
+  async getReportesDetalleInventario() {
+    return this.request('/reportes/inventario/detalle');
+  },
+
+  async getReportesDetalleCuentasPorCobrar() {
+    return this.request('/reportes/cxc/detalle');
+  },
+
+  async getReportesDetalleCuentasPorPagar() {
+    return this.request('/reportes/cxp/detalle');
+  },
+
+};

@@ -17,6 +17,7 @@ import inventarioRoutes from './routes/inventarioRoutes.js';
 import ingresoRoutes from './routes/ingresoRoutes.js';
 import { initializeDatabase } from './config/init_db.js';
 import cajaRoutes from './routes/cajaRoutes.js';
+import reportesRoutes from './routes/reportesRoutes.js';
 import { errorHandler } from './utils/http.js';
 
 dotenv.config();
@@ -200,6 +201,7 @@ app.use('/api/bitacora', bitacoraRoutes);
 app.use('/api/cxp', cuentasPorPagarRoutes);
 app.use('/api/gastos', gastosRoutes);
 app.use('/api/caja', cajaRoutes);
+app.use('/api/reportes', reportesRoutes);
 
 // Rutas API no encontradas
 app.use((req, res, next) => {
