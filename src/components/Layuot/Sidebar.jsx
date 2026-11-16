@@ -5,38 +5,39 @@ import {
   Truck, HandCoins, Receipt, Calculator, FileClock, FileMinus,
 } from 'lucide-react';
 import './Sidebar.css';
+import { api } from '../../services/api.js';
 
 const navigation = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'ventas', label: 'Ventas', icon: ShoppingCart  },
-  { id: 'compras', label: 'Compras', icon: ShoppingBag  },
-{
-   
+  { id: 'ventas', label: 'Ventas', icon: ShoppingCart },
+  { id: 'compras', label: 'Compras', icon: ShoppingBag },
+  {
+
     id: 'inventario', label: 'Inventario', icon: Warehouse, submenu: [
-        { id: 'productos', label: 'Productos y Servicios', icon: Package },
-        { id: 'categorias', label: 'Categorías', icon: Tags },
-        { id: 'inventario', label: 'Inventario', icon: Boxes },
-      ]
- 
+      { id: 'productos', label: 'Productos y Servicios', icon: Package },
+      { id: 'categorias', label: 'Categorías', icon: Tags },
+      { id: 'inventario', label: 'Inventario', icon: Boxes },
+    ]
+
   },
   {
-   
+
     id: 'contactos', label: 'Contactos', icon: ContactRound, submenu: [
-        { id: 'clientes', label: 'Clientes', icon: Users },
-        { id: 'proveedores', label: 'Proveedores', icon: Truck },
-      ]
- 
+      { id: 'clientes', label: 'Clientes', icon: Users },
+      { id: 'proveedores', label: 'Proveedores', icon: Truck },
+    ]
+
   },
   {
-   
+
     id: 'finanzas', label: 'Finanzas', icon: Wallet, submenu: [
-        { id: 'ingresos', label: 'Ingresos', icon: HandCoins },
-        { id: 'gastos', label: 'Gastos', icon: Receipt },
-        { id: 'caja', label: 'Caja / Efectivo', icon: Calculator },
-        { id: 'cxc', label: 'Cuentas por cobrar', icon: FileClock, badge: '5' },
-        { id: 'cxp', label: 'Cuentas por pagar', icon: FileMinus, badge: '2' },
-      ]
- 
+      { id: 'ingresos', label: 'Ingresos', icon: HandCoins },
+      { id: 'gastos', label: 'Gastos', icon: Receipt },
+      { id: 'caja', label: 'Caja / Efectivo', icon: Calculator },
+      { id: 'cxc', label: 'Cuentas por cobrar', icon: FileClock },
+      { id: 'cxp', label: 'Cuentas por pagar', icon: FileMinus },
+    ]
+
   },
   { id: 'reports', label: 'Reportes', icon: FileBarChart },
   { id: 'usuarios', label: 'Usuarios y roles', icon: Users },
@@ -48,12 +49,37 @@ export default function Sidebar({ activeView, onNavigate, onManualLogout }) {
   const [flyoutTop, setFlyoutTop] = useState(153);
   const sidebarRef = useRef(null);
   const flyoutRef = useRef(null);
-
+  const [alertasFinanzas, setAlertasFinanzas] = useState({ inventario: 0, cxc: 0, cxp: 0 });
   const openFlyout = (item, event) => {
     const bounds = event.currentTarget.getBoundingClientRect();
     setFlyoutTop(bounds.top + bounds.height / 2 - 24 - 53);
     setOpenMenu(item);
   };
+
+  useEffect(() => {
+    let activo = true;
+    const actualizarAlertas = async () => {
+      try {
+        const respuesta = await api.getNotificaciones();
+        const resumen = respuesta.data?.resumen;
+        if (activo && resumen) {
+          setAlertasFinanzas({
+            inventario: Number(resumen.inventario) || 0,
+            cxc: Number(resumen.cxc) || 0,
+            cxp: Number(resumen.cxp) || 0
+          });
+        }
+      } catch (error) {
+        console.error('No se pudieron actualizar los indicadores de Finanzas:', error);
+      }
+    };
+    actualizarAlertas();
+    const intervalo = setInterval(actualizarAlertas, 60000);
+    return () => {
+      activo = false;
+      clearInterval(intervalo);
+    };
+  }, []);
 
   useEffect(() => {
     if (!openMenu) return undefined;
@@ -157,7 +183,12 @@ export default function Sidebar({ activeView, onNavigate, onManualLogout }) {
                 >
                   <span className="cpy-flyout-icon"><OptionIcon size={18} strokeWidth={2} /></span>
                   <span className="cpy-flyout-label">{option.label}</span>
-                  {option.badge && <span className="cpy-flyout-badge">{option.badge}</span>}
+                  {['inventario', 'cxc', 'cxp'].includes(option.id) &&
+                    alertasFinanzas[option.id] > 0 && (
+                      <span className="cpy-flyout-badge">
+                        {alertasFinanzas[option.id]}
+                      </span>
+                    )}
                 </button>
               );
             })}

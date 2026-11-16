@@ -18,6 +18,7 @@ import ingresoRoutes from './routes/ingresoRoutes.js';
 import { initializeDatabase } from './config/init_db.js';
 import cajaRoutes from './routes/cajaRoutes.js';
 import reportesRoutes from './routes/reportesRoutes.js';
+import notificacionesRoutes from './routes/notificacionesRoutes.js';
 import { errorHandler } from './utils/http.js';
 
 dotenv.config();
@@ -202,6 +203,7 @@ app.use('/api/cxp', cuentasPorPagarRoutes);
 app.use('/api/gastos', gastosRoutes);
 app.use('/api/caja', cajaRoutes);
 app.use('/api/reportes', reportesRoutes);
+app.use('/api/notificaciones', notificacionesRoutes);
 
 // Rutas API no encontradas
 app.use((req, res, next) => {

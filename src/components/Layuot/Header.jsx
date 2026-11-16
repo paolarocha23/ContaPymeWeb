@@ -1,12 +1,20 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Bell, CalendarDays, Search, X, LockKeyhole, LogOut } from 'lucide-react';
 import './Header.css';
+import { api } from '../../services/api.js';
+import NotificacionesPanel from './NotificacionesPanel.jsx';
+import './NotificacionesPanel.css';
 
 export default function Header({ user, title, subtitle, onOpenChangePassword, onManualLogout }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const menuRef = useRef(null);
+  const [notificacionesOpen, setNotificacionesOpen] = useState(false);
+  const [notificaciones, setNotificaciones] = useState([]);
+  const [cargandoNotificaciones, setCargandoNotificaciones] = useState(false);
+  const [errorNotificaciones, setErrorNotificaciones] = useState('');
+  const notificacionesRef = useRef(null);
   const fullName = user?.nombre_completo || user?.nombre_usuario || 'Laura';
   const initials = fullName
     .split(/\s+/)
@@ -34,6 +42,73 @@ export default function Header({ user, title, subtitle, onOpenChangePassword, on
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [userMenuOpen]);
+
+  const cargarNotificaciones = async () => {
+    setCargandoNotificaciones(true);
+    setErrorNotificaciones('');
+    try {
+      const respuesta = await api.getNotificaciones();
+      setNotificaciones(respuesta.data?.notificaciones || []);
+    } catch (error) {
+      setErrorNotificaciones(
+        error.message || 'No fue posible cargar las notificaciones.'
+      );
+    } finally {
+      setCargandoNotificaciones(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!user?.id_usuario) return undefined;
+    let activo = true;
+    const actualizar = async () => {
+      setCargandoNotificaciones(true);
+      setErrorNotificaciones('');
+      try {
+        const respuesta = await api.getNotificaciones();
+        if (activo) {
+          setNotificaciones(respuesta.data?.notificaciones || []);
+        }
+      } catch (error) {
+        if (activo) {
+          setErrorNotificaciones(
+            error.message || 'No fue posible cargar las notificaciones.'
+          );
+        }
+      } finally {
+        if (activo) {
+          setCargandoNotificaciones(false);
+        }
+      }
+    };
+    actualizar();
+    const intervalo = setInterval(actualizar, 60000);
+    return () => {
+      activo = false;
+      clearInterval(intervalo);
+    };
+  }, [user?.id_usuario, user]);
+
+
+  useEffect(() => {
+    if (!notificacionesOpen) return undefined;
+    const cerrarFuera = (event) => {
+      if (!notificacionesRef.current?.contains(event.target)) {
+        setNotificacionesOpen(false);
+      }
+    };
+    const cerrarEscape = (event) => {
+      if (event.key === 'Escape') {
+        setNotificacionesOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', cerrarFuera);
+    document.addEventListener('keydown', cerrarEscape);
+    return () => {
+      document.removeEventListener('pointerdown', cerrarFuera);
+      document.removeEventListener('keydown', cerrarEscape);
+    };
+  }, [notificacionesOpen]);
 
   return (
     <header className="cpy-header">
@@ -75,10 +150,30 @@ export default function Header({ user, title, subtitle, onOpenChangePassword, on
         >
           <Search size={19} strokeWidth={2} />
         </button>
-        <button className="cpy-header-circle cpy-action-circle cpy-notification" type="button" aria-label="Notificaciones">
-          <Bell size={18} strokeWidth={2} />
-          <span />
-        </button>
+        <div className="cpy-notificaciones-wrap" ref={notificacionesRef}>
+          <button
+            className="cpy-header-circle cpy-action-circle cpy-notification"
+            type="button"
+            aria-label="Notificaciones"
+            aria-expanded={notificacionesOpen}
+            onClick={() => {
+              setNotificacionesOpen((open) => !open);
+              setUserMenuOpen(false);
+            }}
+          >
+            <Bell size={18} strokeWidth={2} />
+            {notificaciones.length > 0 && <span />}
+          </button>
+
+          {notificacionesOpen && (
+            <NotificacionesPanel
+              notificaciones={notificaciones}
+              cargando={cargandoNotificaciones}
+              error={errorNotificaciones}
+              onActualizar={cargarNotificaciones}
+            />
+          )}
+        </div>
         <div className="cpy-user-menu-wrap" ref={menuRef}>
           <button
             className="cpy-header-circle cpy-avatar"

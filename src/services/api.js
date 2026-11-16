@@ -734,4 +734,7 @@ export const api = {
     return this.request('/reportes/cxp/detalle');
   },
 
+  async getNotificaciones() {
+    return this.request('/notificaciones');
+  },
 };
