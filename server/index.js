@@ -20,6 +20,7 @@ import cajaRoutes from './routes/cajaRoutes.js';
 import reportesRoutes from './routes/reportesRoutes.js';
 import notificacionesRoutes from './routes/notificacionesRoutes.js';
 import { errorHandler } from './utils/http.js';
+import cuentasPorCobrarRoutes from './routes/cuentasPorCobrarRoutes.js';
 
 dotenv.config();
 
@@ -204,6 +205,7 @@ app.use('/api/gastos', gastosRoutes);
 app.use('/api/caja', cajaRoutes);
 app.use('/api/reportes', reportesRoutes);
 app.use('/api/notificaciones', notificacionesRoutes);
+app.use('/api/cxc', cuentasPorCobrarRoutes);
 
 // Rutas API no encontradas
 app.use((req, res, next) => {

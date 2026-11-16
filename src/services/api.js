@@ -331,6 +331,44 @@ export const api = {
     return this.request('/cxp/resumen');
   },
 
+
+  // Cuentas por Cobrar
+  getCuentasPorCobrar(filtros = {}) {
+    const params = new URLSearchParams();
+
+    if (filtros.estatus) {
+      params.append('estatus', filtros.estatus);
+    }
+
+    if (filtros.busqueda) {
+      params.append('busqueda', filtros.busqueda);
+    }
+
+    const qs = params.toString() ? `?${params.toString()}` : '';
+
+    return this.request(`/cxc${qs}`);
+  },
+
+  getCuentaPorCobrar(id) {
+    return this.request(`/cxc/${encodeURIComponent(id)}`);
+  },
+
+  getPagosCxc(id) {
+    return this.request(`/cxc/${encodeURIComponent(id)}/pagos`);
+  },
+
+  registrarCobroCxc(id, datos) {
+    return this.request(`/cxc/${encodeURIComponent(id)}/pagos`, {
+      method: 'POST',
+      body: JSON.stringify(datos)
+    });
+  },
+
+  getResumenCxc() {
+    return this.request('/cxc/resumen');
+  },
+
+
   // Categorías
   getCategories(filters = {}) {
     const params = new URLSearchParams();

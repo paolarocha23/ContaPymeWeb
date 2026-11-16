@@ -25,7 +25,7 @@ import ReportesView from './components/Reportes/ReportesView';
 
 import InventarioView from './components/Inventario/InventarioView';
 import IngresosView from './components/Ingresos/IngresosView';
-
+import CuentasPorCobrarView from './components/CuentasPorCobrar/CuentasPorCobrarView';
 
 import CajaView from './components/Caja/CajaView';
 
@@ -208,6 +208,7 @@ export default function App() {
     inventario: 'Existencias y movimientos',
     ingresos: 'Registro y consulta de ingresos',
     reports: 'Indicadores financieros y operativos del negocio',
+    cxc: 'Control de cobros y saldos pendientes de clientes'
   };
 
   // Identificar pantallas con componentes propios
@@ -221,6 +222,7 @@ export default function App() {
   const isInventario = activeView === 'inventario';
   const isCaja = activeView === 'caja';
   const isReportes = activeView === 'reports';
+  const isCuentasPorCobrar = activeView === 'cxc';
 
   const hasOwnView =
     activeView === 'dashboard' ||
@@ -232,12 +234,10 @@ export default function App() {
     isReportes ||
     isCuentasPorPagar ||
     isGastos ||
-    activeView === 'categorias' ||
-    activeView === 'productos' ||
-    activeView === 'inventario' ||
-    activeView === 'ingresos' ||
-    isClientes || isProveedores ||
-    isCuentasPorPagar;
+    isInventario ||
+    isCaja ||
+    isCuentasPorCobrar ||
+    activeView === 'ingresos';
    
 
     isInventario ||
@@ -356,6 +356,7 @@ export default function App() {
             {isCuentasPorPagar && <CuentasPorPagarView />}
             {isGastos && <GastosView />}
             {isReportes && <ReportesView />}
+            {isCuentasPorCobrar && <CuentasPorCobrarView />}
 
             {activeView === 'categorias' && <CategoriasView />}
             {activeView === 'productos' && <ProductosView />}
