@@ -52,6 +52,15 @@
   color: #fff;
 }
 
+/* Mientras hay un ícono con el cursor o con el submenú abierto,
+   el ícono de la página actual vuelve a verse normal: solo uno en azul */
+.cpy-sidebar-items:hover .cpy-sidebar-button.is-active:not(:hover):not(.is-open),
+.cpy-sidebar:has(.cpy-sidebar-button.is-open) .cpy-sidebar-button.is-active:not(.is-open) {
+  background: transparent;
+  box-shadow: none;
+  color: #6b7280;
+}
+
 .cpy-sidebar-button:focus-visible,
 .cpy-flyout-option:focus-visible {
   outline: 3px solid rgba(42, 68, 201, 0.35);

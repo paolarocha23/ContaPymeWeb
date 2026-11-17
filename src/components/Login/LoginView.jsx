@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Lock, User, Eye, EyeOff, ArrowRight, AlertCircle, RotateCw, Key } from 'lucide-react';
+import { Lock, User, Eye, EyeOff, ArrowRight, AlertCircle, RotateCw } from 'lucide-react';
 import { api } from '../../services/api';
 import './LoginView.css';
 
-export default function LoginView({ onRequire2FA, onOpenForgot, onOpenReset, sessionExpiredMsg }) {
+export default function LoginView({ onRequire2FA, onOpenForgot, sessionExpiredMsg }) {
   const [nombreUsuario, setNombreUsuario] = useState('');
   const [contrasena, setContrasena] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -44,21 +44,25 @@ export default function LoginView({ onRequire2FA, onOpenForgot, onOpenReset, ses
 
   return (
     <div className="login-split-page">
+      {/* ───── Imagen fija ───── */}
       <div className="login-hero-side">
-        <div className="login-hero-overlay-brand">
-          <img className="login-brand-logo login-brand-logo-light" src="/img/logo-blanco.png" alt="ContaPyme" />
-        </div>
         <img
           src="/img/login-imagen.png"
-          alt="ContaPyme - Finanzas y Contabilidad para PyMEs"
+          alt="ContaPyme - Administración y contabilidad para PyMEs"
           className="login-hero-image"
+        />
+        <img
+          className="login-brand-light"
+          src="/img/logo-blanco.png"
+          alt="ContaPyme"
         />
       </div>
 
+      {/* ───── Formulario ───── */}
       <div className="login-form-side">
         <div className="login-form-inner">
           <div className="login-form-brand">
-            <img className="login-brand-logo login-brand-logo-dark" src="/img/logo-azul.png" alt="ContaPyme" />
+            <img className="login-brand-dark" src="/img/logo-azul.png" alt="ContaPyme" />
           </div>
 
           <div className="login-form-heading">
@@ -74,13 +78,13 @@ export default function LoginView({ onRequire2FA, onOpenForgot, onOpenReset, ses
           )}
 
           <form onSubmit={handleSubmit}>
-            <div className="form-group login-field">
-              <label className="form-label">USUARIO</label>
-              <div className="input-with-icon">
-                <User className="input-icon" size={18} />
+            <div className="login-field">
+              <label className="login-label">USUARIO</label>
+              <div className="login-input-wrap">
+                <span className="login-ico"><User size={18} /></span>
                 <input
                   type="text"
-                  className="form-input"
+                  className="login-input"
                   placeholder="Nombre de usuario"
                   value={nombreUsuario}
                   onChange={(e) => setNombreUsuario(e.target.value)}
@@ -91,23 +95,22 @@ export default function LoginView({ onRequire2FA, onOpenForgot, onOpenReset, ses
               </div>
             </div>
 
-            <div className="form-group login-field login-field-password">
-              <label className="form-label">CONTRASEÑA</label>
-              <div className="input-with-icon">
-                <Lock className="input-icon" size={18} />
+            <div className="login-field">
+              <label className="login-label">CONTRASEÑA</label>
+              <div className="login-input-wrap">
+                <span className="login-ico"><Lock size={18} /></span>
                 <input
                   type={showPassword ? 'text' : 'password'}
-                  className="form-input"
+                  className="login-input"
                   placeholder="Ingresa tu contraseña"
                   value={contrasena}
                   onChange={(e) => setContrasena(e.target.value)}
                   required
                   disabled={loading}
-                  style={{ paddingRight: 44 }}
                 />
                 <button
                   type="button"
-                  className="input-action-btn"
+                  className="login-eye"
                   onClick={() => setShowPassword(!showPassword)}
                   tabIndex={-1}
                   title={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
@@ -121,7 +124,7 @@ export default function LoginView({ onRequire2FA, onOpenForgot, onOpenReset, ses
               ¿Olvidaste tu contraseña?
             </button>
 
-            <button type="submit" className="btn btn-primary login-submit" disabled={loading}>
+            <button type="submit" className="login-submit" disabled={loading}>
               {loading ? (
                 <>
                   <RotateCw className="animate-spin" size={18} />
@@ -146,24 +149,13 @@ export default function LoginView({ onRequire2FA, onOpenForgot, onOpenReset, ses
             </button>
           </div>
 
-          <div className="login-reset-wrap">
-            <button type="button" className="login-reset-link" onClick={onOpenReset}>
-              <Key size={13} />
-              ¿Ya tienes token de recuperación? Restablecer aquí
-            </button>
-          </div>
-
+          {/* Demo: quitar antes de producción */}
           <div className="login-demo">
             <div>
               <strong>Admin demo:</strong>{' '}
               <code>admin</code> / <code>Admin1234!</code>
             </div>
-            <button
-              type="button"
-              className="btn btn-sm"
-              style={{ background: '#e2e8f0', color: '#0f172a', padding: '4px 10px', fontSize: '0.72rem' }}
-              onClick={fillAdmin}
-            >
+            <button type="button" className="login-demo-btn" onClick={fillAdmin}>
               Autocompletar
             </button>
           </div>

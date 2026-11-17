@@ -12,24 +12,19 @@ const navigation = [
   { id: 'ventas', label: 'Ventas', icon: ShoppingCart },
   { id: 'compras', label: 'Compras', icon: ShoppingBag },
   {
-
     id: 'inventario', label: 'Inventario', icon: Warehouse, submenu: [
       { id: 'productos', label: 'Productos y Servicios', icon: Package },
       { id: 'categorias', label: 'Categorías', icon: Tags },
       { id: 'inventario', label: 'Inventario', icon: Boxes },
     ]
-
   },
   {
-
     id: 'contactos', label: 'Contactos', icon: ContactRound, submenu: [
       { id: 'clientes', label: 'Clientes', icon: Users },
       { id: 'proveedores', label: 'Proveedores', icon: Truck },
     ]
-
   },
   {
-
     id: 'finanzas', label: 'Finanzas', icon: Wallet, submenu: [
       { id: 'ingresos', label: 'Ingresos', icon: HandCoins },
       { id: 'gastos', label: 'Gastos', icon: Receipt },
@@ -37,7 +32,6 @@ const navigation = [
       { id: 'cxc', label: 'Cuentas por cobrar', icon: FileClock },
       { id: 'cxp', label: 'Cuentas por pagar', icon: FileMinus },
     ]
-
   },
   { id: 'reports', label: 'Reportes', icon: FileBarChart },
   { id: 'usuarios', label: 'Usuarios y roles', icon: Users },
@@ -50,6 +44,7 @@ export default function Sidebar({ activeView, onNavigate, onManualLogout }) {
   const sidebarRef = useRef(null);
   const flyoutRef = useRef(null);
   const [alertasFinanzas, setAlertasFinanzas] = useState({ inventario: 0, cxc: 0, cxp: 0 });
+
   const openFlyout = (item, event) => {
     const bounds = event.currentTarget.getBoundingClientRect();
     setFlyoutTop(bounds.top + bounds.height / 2 - 24 - 53);
@@ -138,6 +133,7 @@ export default function Sidebar({ activeView, onNavigate, onManualLogout }) {
                   : selectItem(item)}
                 onMouseEnter={(event) => {
                   if (item.submenu) openFlyout(item, event);
+                  else setOpenMenu(null); // cierra el submenú anterior al pasar por un ícono sin submenú
                 }}
               >
                 <Icon size={20} strokeWidth={2} />
