@@ -1,6 +1,6 @@
 import pool from '../config/db.js';
 
-export async function obtenerCuentas(filtros = {}) {
+export async function obtenerCuentas(filtros = {}, empresaId = null) {
   const params = [];
 
   let query = `
@@ -30,6 +30,11 @@ export async function obtenerCuentas(filtros = {}) {
     INNER JOIN ventas v ON v.id_venta = cxc.id_venta
     WHERE 1 = 1
   `;
+
+  if (empresaId) {
+    params.push(empresaId);
+    query += ` AND cxc.empresa_id = $${params.length}`;
+  }
 
   if (filtros.estatus && filtros.estatus !== 'todas') {
     if (filtros.estatus === 'vencida') {
@@ -127,7 +132,7 @@ export async function obtenerPagos(id) {
   return rows;
 }
 
-export async function obtenerResumen() {
+export async function obtenerResumen(empresaId = null) {
   const { rows } = await pool.query(`
     SELECT
       COUNT(*) FILTER (
@@ -162,7 +167,8 @@ export async function obtenerResumen() {
           AND LOWER(TRIM(estatus)) NOT IN ('cancelada', 'saldada', 'pagada')
       ), 0) AS saldo_vencido
     FROM cuentas_por_cobrar
-  `);
+    WHERE ($1::int IS NULL OR empresa_id = $1)
+  `, [empresaId]);
 
   return rows[0];
 }
@@ -189,16 +195,18 @@ export async function insertarCobro(client, datos) {
       monto,
       forma_pago,
       id_usuario,
-      observaciones
+      observaciones,
+      empresa_id
     )
-    VALUES ($1, NOW(), $2, $3, $4, $5)
+    VALUES ($1, NOW(), $2, $3, $4, $5, $6)
     RETURNING *
   `, [
     datos.id_cxc,
     datos.monto,
     datos.forma_pago,
     datos.id_usuario,
-    datos.observaciones || null
+    datos.observaciones || null,
+    datos.empresa_id ?? 1
   ]);
 
   return rows[0];
@@ -233,14 +241,15 @@ export async function actualizarVenta(client, idVenta, monto) {
   return rows[0] || null;
 }
 
-export async function obtenerCategoriaCobros(client) {
+export async function obtenerCategoriaCobros(client, empresaId = null) {
   const { rows } = await client.query(`
     SELECT id_categoria
     FROM categorias
     WHERE LOWER(TRIM(nombre)) = LOWER('Cobros de clientes')
       AND estatus = 1
+      AND ($1::int IS NULL OR empresa_id = $1)
     LIMIT 1
-  `);
+  `, [empresaId]);
 
   return rows[0]?.id_categoria || null;
 }

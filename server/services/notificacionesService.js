@@ -29,12 +29,12 @@ export async function obtenerNotificaciones(usuario) {
     const puedeCxp = tienePermiso(usuario, 'cxp');
 
     const [productos, cobros, pagos] = await Promise.all([
-        puedeInventario ? stockBajo() : Promise.resolve([]),
+        puedeInventario ? stockBajo(usuario.empresa_id) : Promise.resolve([]),
         puedeCxc
-            ? obtenerAlertasCxc(DIAS_ANTICIPACION)
+            ? obtenerAlertasCxc(DIAS_ANTICIPACION, usuario.empresa_id)
             : Promise.resolve([]),
         puedeCxp
-            ? obtenerAlertasCxp(DIAS_ANTICIPACION)
+            ? obtenerAlertasCxp(DIAS_ANTICIPACION, usuario.empresa_id)
             : Promise.resolve([])
     ]);
 

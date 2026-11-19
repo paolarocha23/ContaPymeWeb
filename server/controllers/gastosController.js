@@ -9,7 +9,7 @@ import {
 } from '../services/gastosService.js';
 
 export async function obtenerGastos(req, res) {
-  const gastos = await listarGastos(req.query);
+  const gastos = await listarGastos(req.query, req.user.empresa_id);
 
   res.json({
     success: true,
@@ -29,7 +29,7 @@ export async function obtenerGasto(req, res) {
 }
 
 export async function obtenerCategorias(req, res) {
-  const categorias = await listarCategoriasGastos();
+  const categorias = await listarCategoriasGastos(req.user.empresa_id);
 
   res.json({
     success: true,
@@ -39,7 +39,7 @@ export async function obtenerCategorias(req, res) {
 }
 
 export async function registrarGastoController(req, res) {
-  const gasto = await crearGasto(req.body, req.user.id_usuario);
+  const gasto = await crearGasto(req.body, req.user.id_usuario, req.user.empresa_id);
 
   res.status(201).json({
     success: true,
@@ -72,7 +72,7 @@ export async function cancelarGastoController(req, res) {
 }
 
 export async function obtenerResumen(req, res) {
-  const resumen = await consultarResumenGastos();
+  const resumen = await consultarResumenGastos(req.user.empresa_id);
 
   res.json({
     success: true,

@@ -45,7 +45,7 @@ const validarFecha = (fecha) => {
 };
 
 // Consultar y organizar todos los indicadores del módulo.
-export const obtenerResumenGeneralReportes = async (filtros = {}) => {
+export const obtenerResumenGeneralReportes = async (filtros = {}, empresaId = null) => {
     const fecha_inicio = filtros.fecha_inicio || null;
     const fecha_fin = filtros.fecha_fin || null;
 
@@ -76,13 +76,13 @@ export const obtenerResumenGeneralReportes = async (filtros = {}) => {
         cuentasPorPagar,
         inventario
     ] = await Promise.all([
-        obtenerReporteVentas(filtrosValidados),
-        obtenerReporteCompras(filtrosValidados),
-        obtenerReporteIngresos(filtrosValidados),
-        obtenerReporteGastos(filtrosValidados),
-        obtenerReporteCuentasPorCobrar(),
-        obtenerReporteCuentasPorPagar(),
-        obtenerReporteInventario()
+        obtenerReporteVentas(filtrosValidados, empresaId),
+        obtenerReporteCompras(filtrosValidados, empresaId),
+        obtenerReporteIngresos(filtrosValidados, empresaId),
+        obtenerReporteGastos(filtrosValidados, empresaId),
+        obtenerReporteCuentasPorCobrar(empresaId),
+        obtenerReporteCuentasPorPagar(empresaId),
+        obtenerReporteInventario(empresaId)
     ]);
 
     const ventasData = convertirNumeros(ventas);
@@ -141,10 +141,10 @@ const validarFiltrosDetalle = (filtros = {}) => {
 };
 
 // Obtener el detalle de las ventas.
-export const obtenerReporteDetalleVentas = async (filtros = {}) => {
+export const obtenerReporteDetalleVentas = async (filtros = {}, empresaId = null) => {
     const filtrosValidados = validarFiltrosDetalle(filtros);
 
-    const ventas = await obtenerDetalleVentas(filtrosValidados);
+    const ventas = await obtenerDetalleVentas(filtrosValidados, empresaId);
 
     return {
         periodo: filtrosValidados,
@@ -158,10 +158,10 @@ export const obtenerReporteDetalleVentas = async (filtros = {}) => {
 };
 
 // Obtener el detalle de las compras.
-export const obtenerReporteDetalleCompras = async (filtros = {}) => {
+export const obtenerReporteDetalleCompras = async (filtros = {}, empresaId = null) => {
     const filtrosValidados = validarFiltrosDetalle(filtros);
 
-    const compras = await obtenerDetalleCompras(filtrosValidados);
+    const compras = await obtenerDetalleCompras(filtrosValidados, empresaId);
 
     return {
         periodo: filtrosValidados,
@@ -174,10 +174,10 @@ export const obtenerReporteDetalleCompras = async (filtros = {}) => {
 };
 
 // Obtener el detalle de los ingresos.
-export const obtenerReporteDetalleIngresos = async (filtros = {}) => {
+export const obtenerReporteDetalleIngresos = async (filtros = {}, empresaId = null) => {
     const filtrosValidados = validarFiltrosDetalle(filtros);
 
-    const ingresos = await obtenerDetalleIngresos(filtrosValidados);
+    const ingresos = await obtenerDetalleIngresos(filtrosValidados, empresaId);
 
     return {
         periodo: filtrosValidados,
@@ -190,10 +190,10 @@ export const obtenerReporteDetalleIngresos = async (filtros = {}) => {
 };
 
 // Obtener el detalle de los gastos.
-export const obtenerReporteDetalleGastos = async (filtros = {}) => {
+export const obtenerReporteDetalleGastos = async (filtros = {}, empresaId = null) => {
     const filtrosValidados = validarFiltrosDetalle(filtros);
 
-    const gastos = await obtenerDetalleGastos(filtrosValidados);
+    const gastos = await obtenerDetalleGastos(filtrosValidados, empresaId);
 
     return {
         periodo: filtrosValidados,
@@ -206,8 +206,8 @@ export const obtenerReporteDetalleGastos = async (filtros = {}) => {
 };
 
 // Obtener el detalle de las existencias actuales del inventario.
-export const obtenerReporteDetalleInventario = async () => {
-    const productos = await obtenerDetalleInventario();
+export const obtenerReporteDetalleInventario = async (empresaId = null) => {
+    const productos = await obtenerDetalleInventario(empresaId);
 
     return {
         total_registros: productos.length,
@@ -230,8 +230,8 @@ export const obtenerReporteDetalleInventario = async () => {
 };
 
 // DETALLE DE CUENTAS POR COBRAR
-export const obtenerReporteDetalleCuentasPorCobrar = async () => {
-    const cuentas = await obtenerDetalleCuentasPorCobrar();
+export const obtenerReporteDetalleCuentasPorCobrar = async (empresaId = null) => {
+    const cuentas = await obtenerDetalleCuentasPorCobrar(empresaId);
 
     const cuentasConvertidas = cuentas.map((cuenta) => ({
         ...cuenta,
@@ -269,8 +269,8 @@ export const obtenerReporteDetalleCuentasPorCobrar = async () => {
 };
 
 // DETALLE DE CUENTAS POR PAGAR
-export const obtenerReporteDetalleCuentasPorPagar = async () => {
-    const cuentas = await obtenerDetalleCuentasPorPagar();
+export const obtenerReporteDetalleCuentasPorPagar = async (empresaId = null) => {
+    const cuentas = await obtenerDetalleCuentasPorPagar(empresaId);
 
     const cuentasConvertidas = cuentas.map((cuenta) => ({
         ...cuenta,

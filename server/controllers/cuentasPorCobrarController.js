@@ -4,7 +4,7 @@ export async function obtenerCuentas(req, res) {
   const data = await service.listarCuentas({
     estatus: req.query.estatus || '',
     busqueda: req.query.busqueda || ''
-  });
+  }, req.user.empresa_id);
 
   res.json({ success: true, data });
 }
@@ -20,7 +20,7 @@ export async function obtenerPagos(req, res) {
 }
 
 export async function obtenerResumen(req, res) {
-  const data = await service.obtenerIndicadores();
+  const data = await service.obtenerIndicadores(req.user.empresa_id);
   res.json({ success: true, data });
 }
 
@@ -37,7 +37,8 @@ export async function registrarCobro(req, res) {
   const data = await service.registrarCobro(
     req.params.id,
     req.body,
-    idUsuario
+    idUsuario,
+    req.user.empresa_id
   );
 
   res.status(201).json({

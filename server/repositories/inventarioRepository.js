@@ -63,7 +63,7 @@ export async function conTransaccion(fn) {
   }
 }
 
-export async function listarExistencias({ q, estatus, id_categoria, estado } = {}) {
+export async function listarExistencias({ q, estatus, id_categoria, estado } = {}, empresaId = null) {
   const params = [];
   const add = (v) => {
     params.push(v);
@@ -71,6 +71,7 @@ export async function listarExistencias({ q, estatus, id_categoria, estado } = {
   };
 
   let where = `WHERE LOWER(p.tipo) = 'producto'`;
+  if (empresaId) where += ` AND p.empresa_id = ${add(empresaId)}`;
 
   if (q) {
     const p = add(`%${q}%`);
@@ -104,7 +105,7 @@ export async function findExistencia(id, db = pool) {
   return normalizarExistencia(rows[0]) || null;
 }
 
-export async function stockBajo() {
+export async function stockBajo(empresaId = null) {
   const { rows } = await pool.query(`
     SELECT ${COLUMNAS}
     FROM productos p
@@ -113,13 +114,14 @@ export async function stockBajo() {
       AND p.estatus = 1
       AND p.stock_minimo IS NOT NULL
       AND COALESCE(p.stock, 0) <= p.stock_minimo
+      AND ($1::int IS NULL OR p.empresa_id = $1)
     ORDER BY (COALESCE(p.stock, 0) - p.stock_minimo) ASC, p.nombre ASC
-  `);
+  `, [empresaId]);
 
   return rows.map(normalizarExistencia);
 }
 
-export async function stats() {
+export async function stats(empresaId = null) {
   const { rows } = await pool.query(`
     SELECT
       COUNT(*)::int AS total_productos,
@@ -129,7 +131,8 @@ export async function stats() {
       COUNT(*) FILTER (WHERE ${ESTADO_STOCK} = 'sin_stock')::int AS sin_stock
     FROM productos p
     WHERE LOWER(p.tipo) = 'producto' AND p.estatus = 1
-  `);
+      AND ($1::int IS NULL OR p.empresa_id = $1)
+  `, [empresaId]);
 
   const r = rows[0];
 
@@ -138,7 +141,7 @@ export async function stats() {
 
 export async function listarMovimientos({
   q, id_producto, tipo_movimiento, origen, desde, hasta, limite, pagina
-} = {}) {
+} = {}, empresaId = null) {
   const params = [];
   const add = (v) => {
     params.push(v);
@@ -146,6 +149,10 @@ export async function listarMovimientos({
   };
 
   let where = 'WHERE 1=1';
+
+  if (empresaId) {
+    where += ` AND m.empresa_id = ${add(empresaId)}`;
+  }
 
   if (q) {
     const p = add(`%${q}%`);
@@ -221,9 +228,9 @@ export async function insertarMovimiento(client, d) {
     INSERT INTO movimientos_inventario (
       id_producto, tipo_movimiento, cantidad,
       existencia_antes, existencia_despues,
-      motivo, origen, id_referencia, id_usuario
+      motivo, origen, id_referencia, id_usuario, empresa_id
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
     RETURNING id_movimiento, fecha
   `, [
     d.id_producto,
@@ -234,7 +241,8 @@ export async function insertarMovimiento(client, d) {
     d.motivo,
     d.origen,
     d.id_referencia ?? null,
-    d.id_usuario
+    d.id_usuario,
+    d.empresa_id ?? 1
   ]);
 
   return rows[0];

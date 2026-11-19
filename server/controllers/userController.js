@@ -34,6 +34,10 @@ export async function getUsers(req, res) {
       return `$${params.length}`;
     };
 
+    if (req.user?.empresa_id) {
+      query += ` AND u.empresa_id = ${addParam(req.user.empresa_id)}`;
+    }
+
     // Filtro por búsqueda de nombre, apellidos, nombre_usuario o correo
     if (search && search.trim() !== '') {
       const p = addParam(`%${search.trim()}%`);
@@ -135,27 +139,29 @@ export async function createUser(req, res) {
       });
     }
 
-    // Validar nombre_usuario único
+    const empresaId = req.user.empresa_id;
+
+    // Validar nombre_usuario único por empresa
     const { rows: userExist } = await pool.query(
-      'SELECT id_usuario FROM usuarios WHERE nombre_usuario = $1',
-      [nombre_usuario.trim()]
+      'SELECT id_usuario FROM usuarios WHERE nombre_usuario = $1 AND empresa_id = $2',
+      [nombre_usuario.trim(), empresaId]
     );
     if (userExist.length > 0) {
       return res.status(400).json({
         success: false,
-        message: `El nombre de usuario "${nombre_usuario}" ya está registrado. Elige otro.`
+        message: `El nombre de usuario "${nombre_usuario}" ya está registrado en esta empresa. Elige otro.`
       });
     }
 
-    // Validar correo único
+    // Validar correo único por empresa
     const { rows: emailExist } = await pool.query(
-      'SELECT id_usuario FROM usuarios WHERE correo = $1',
-      [correo.trim()]
+      'SELECT id_usuario FROM usuarios WHERE correo = $1 AND empresa_id = $2',
+      [correo.trim(), empresaId]
     );
     if (emailExist.length > 0) {
       return res.status(400).json({
         success: false,
-        message: `El correo electrónico "${correo}" ya está registrado.`
+        message: `El correo electrónico "${correo}" ya está registrado en esta empresa.`
       });
     }
 
@@ -178,11 +184,11 @@ export async function createUser(req, res) {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(contrasena, salt);
 
-    // Insertar usuario con estatus inicial activo = 1
+    // Insertar usuario con estatus inicial activo = 1 y empresa_id
     const { rows: inserted } = await pool.query(`
       INSERT INTO usuarios 
-        (nombre, apellido_paterno, apellido_materno, nombre_usuario, contrasena, correo, id_rol, estatus)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, 1)
+        (nombre, apellido_paterno, apellido_materno, nombre_usuario, contrasena, correo, id_rol, estatus, empresa_id)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, 1, $8)
       RETURNING id_usuario
     `, [
       nombre.trim(),
@@ -191,7 +197,8 @@ export async function createUser(req, res) {
       nombre_usuario.trim(),
       hashedPassword,
       correo.trim(),
-      id_rol
+      id_rol,
+      empresaId
     ]);
 
     const nuevoId = inserted[0].id_usuario;
@@ -254,16 +261,16 @@ export async function updateUser(req, res) {
 
     const current = existing[0];
 
-    // Verificar unicidad de correo si cambió
+    // Verificar unicidad de correo si cambió (por empresa)
     if (correo && correo.trim() !== current.correo) {
       const { rows: emailDup } = await pool.query(
-        'SELECT id_usuario FROM usuarios WHERE correo = $1 AND id_usuario != $2',
-        [correo.trim(), id]
+        'SELECT id_usuario FROM usuarios WHERE correo = $1 AND id_usuario != $2 AND empresa_id = $3',
+        [correo.trim(), id, req.user?.empresa_id || current.empresa_id]
       );
       if (emailDup.length > 0) {
         return res.status(400).json({
           success: false,
-          message: `El correo "${correo}" ya está en uso por otro usuario.`
+          message: `El correo "${correo}" ya está en uso por otro usuario en esta empresa.`
         });
       }
     }

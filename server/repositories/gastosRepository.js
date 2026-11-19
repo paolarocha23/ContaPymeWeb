@@ -9,7 +9,8 @@ export async function registrarMovimientoCaja(datos, client = pool) {
     monto,
     origen,
     id_referencia,
-    id_usuario
+    id_usuario,
+    empresa_id
   } = datos;
 
   const consulta = `
@@ -20,11 +21,12 @@ export async function registrarMovimientoCaja(datos, client = pool) {
       monto,
       origen,
       id_referencia,
-      id_usuario
+      id_usuario,
+      empresa_id
     )
     VALUES (
       COALESCE($1::timestamp, CURRENT_TIMESTAMP),
-      $2, $3, $4, $5, $6, $7
+      $2, $3, $4, $5, $6, $7, $8
     )
     RETURNING *
   `;
@@ -36,14 +38,15 @@ export async function registrarMovimientoCaja(datos, client = pool) {
     monto,
     origen,
     id_referencia || null,
-    id_usuario
+    id_usuario,
+    empresa_id ?? 1
   ]);
 
   return rows[0];
 }
 
 // Consultar todos los gastos
-export async function obtenerGastos(filtros = {}) {
+export async function obtenerGastos(filtros = {}, empresaId = null) {
   const { fecha_inicio, fecha_fin, id_categoria, concepto } = filtros;
 
   let consulta = `
@@ -70,6 +73,12 @@ export async function obtenerGastos(filtros = {}) {
 
   const valores = [];
   let posicion = 1;
+
+  if (empresaId) {
+    consulta += ` AND g.empresa_id = $${posicion}`;
+    valores.push(empresaId);
+    posicion++;
+  }
 
   if (fecha_inicio) {
     consulta += ` AND g.fecha >= $${posicion}`;
@@ -127,16 +136,16 @@ export async function obtenerGastoPorId(id, client = pool, bloquear = false) {
 }
 
 // Consultar categorías activas
-export async function obtenerCategoriasGastos() {
+export async function obtenerCategoriasGastos(empresaId = null) {
   const consulta = `
     SELECT id_categoria, nombre
     FROM categorias
     WHERE estatus = 1
-      AND id_categoria = 1
+      AND ($1::int IS NULL OR empresa_id = $1)
     ORDER BY nombre ASC
   `;
 
-  const { rows } = await pool.query(consulta);
+  const { rows } = await pool.query(consulta, [empresaId]);
   return rows;
 }
 
@@ -149,7 +158,8 @@ export async function registrarGasto(datos, client = pool) {
     monto,
     forma_pago,
     observaciones,
-    id_usuario
+    id_usuario,
+    empresa_id
   } = datos;
 
   const consulta = `
@@ -160,11 +170,12 @@ export async function registrarGasto(datos, client = pool) {
       monto,
       forma_pago,
       observaciones,
-      id_usuario
+      id_usuario,
+      empresa_id
     )
     VALUES (
       COALESCE($1::timestamp, CURRENT_TIMESTAMP),
-      $2, $3, $4, $5, $6, $7
+      $2, $3, $4, $5, $6, $7, $8
     )
     RETURNING *
   `;
@@ -176,7 +187,8 @@ export async function registrarGasto(datos, client = pool) {
     monto,
     forma_pago,
     observaciones || null,
-    id_usuario
+    id_usuario,
+    empresa_id ?? 1
   ]);
 
   return rows[0];
@@ -235,7 +247,7 @@ export async function cancelarGasto(id, client = pool) {
   return rows[0] || null;
 }
 // Consultar resumen de gastos
-export async function obtenerResumenGastos() {
+export async function obtenerResumenGastos(empresaId = null) {
   const consulta = `
     SELECT
       COUNT(*) FILTER (WHERE estatus = 'activo') AS total_gastos,
@@ -245,8 +257,9 @@ export async function obtenerResumenGastos() {
       ) AS monto_total,
       COUNT(*) FILTER (WHERE estatus = 'cancelado') AS gastos_cancelados
     FROM gastos
+    WHERE ($1::int IS NULL OR empresa_id = $1)
   `;
 
-  const { rows } = await pool.query(consulta);
+  const { rows } = await pool.query(consulta, [empresaId]);
   return rows[0];
 }

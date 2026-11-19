@@ -57,8 +57,8 @@ export const api = {
     }));
 
     if (!response.ok) {
-      // Si el token expiró o la cuenta fue desactivada mientras navegaba
-      if (response.status === 401 || (response.status === 403 && data.code === 'USER_INACTIVE')) {
+      // Si el token expiró o la cuenta/empresa fue desactivada mientras navegaba
+      if (response.status === 401 || (response.status === 403 && ['USER_INACTIVE', 'EMPRESA_INACTIVE', 'NO_EMPRESA_ASSIGNED'].includes(data.code))) {
         if (endpoint !== '/auth/login' && endpoint !== '/auth/verify-2fa') {
           this.clearSession();
           window.dispatchEvent(new CustomEvent('contapyme_auth_expired', { detail: data.message }));

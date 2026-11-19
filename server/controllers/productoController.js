@@ -11,15 +11,15 @@ const auditar = (req, accion, detalle) =>
   });
 
 export const getProductos = asyncHandler(async (req, res) => {
-  res.json({ success: true, data: await productoService.listar(req.query) });
+  res.json({ success: true, data: await productoService.listar(req.query, req.user.empresa_id) });
 });
 
 export const getStats = asyncHandler(async (req, res) => {
-  res.json({ success: true, data: await productoService.estadisticas() });
+  res.json({ success: true, data: await productoService.estadisticas(req.user.empresa_id) });
 });
 
 export const getCategorias = asyncHandler(async (req, res) => {
-  res.json({ success: true, data: await productoService.listarCategorias() });
+  res.json({ success: true, data: await productoService.listarCategorias(req.user.empresa_id) });
 });
 
 export const getProductoById = asyncHandler(async (req, res) => {
@@ -31,7 +31,7 @@ export const getOperaciones = asyncHandler(async (req, res) => {
 });
 
 export const createProducto = asyncHandler(async (req, res) => {
-  const producto = await productoService.crear(req.body);
+  const producto = await productoService.crear(req.body, req.user.empresa_id);
 
   await auditar(
     req,
@@ -47,7 +47,7 @@ export const createProducto = asyncHandler(async (req, res) => {
 });
 
 export const updateProducto = asyncHandler(async (req, res) => {
-  const { anterior, producto } = await productoService.actualizar(req.params.id, req.body);
+  const { anterior, producto } = await productoService.actualizar(req.params.id, req.body, req.user.empresa_id);
 
   await auditar(
     req,

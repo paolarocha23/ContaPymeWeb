@@ -6,6 +6,7 @@ import pool from '../config/db.js';
 export async function getBitacora(req, res) {
   try {
     const { accion, nombre_usuario, limit = 50, offset = 0 } = req.query;
+    const empresa_id = req.user.empresa_id;
 
     let query = `
       SELECT 
@@ -17,9 +18,9 @@ export async function getBitacora(req, res) {
         fecha,
         detalle
       FROM bitacora_accesos
-      WHERE 1=1
+      WHERE empresa_id = $1
     `;
-    const params = [];
+    const params = [empresa_id];
     const addParam = (value) => {
       params.push(value);
       return `$${params.length}`;
@@ -41,7 +42,8 @@ export async function getBitacora(req, res) {
     const { rows } = await pool.query(query, params);
 
     const { rows: totalRows } = await pool.query(
-      'SELECT COUNT(*) AS total FROM bitacora_accesos'
+      'SELECT COUNT(*) AS total FROM bitacora_accesos WHERE empresa_id = $1',
+      [empresa_id]
     );
 
     return res.json({

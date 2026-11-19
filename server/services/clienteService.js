@@ -11,10 +11,10 @@ async function obtenerOFallar(idParam) {
   return cliente;
 }
 
-export const listar = (query) => repo.list(normalizarFiltros(query));
+export const listar = (query, empresaId = null) => repo.list(normalizarFiltros(query), empresaId);
 export const obtener = (id) => obtenerOFallar(id);
-export const estadisticas = () => repo.stats();
-export const opciones = () => repo.opciones();
+export const estadisticas = (empresaId = null) => repo.stats(empresaId);
+export const opciones = (empresaId = null) => repo.opciones(empresaId);
 
 export async function historial(idParam) {
   const cliente = await obtenerOFallar(idParam);
@@ -37,8 +37,8 @@ export async function historial(idParam) {
 }
 
 /** RDF0401: el estatus inicial siempre es activo. */
-export async function crear(body) {
-  return repo.insert(validarCliente(body));
+export async function crear(body, empresaId = 1) {
+  return repo.insert(validarCliente(body), empresaId);
 }
 
 /** RDF0403: se actualizan los datos, nunca el identificador. */

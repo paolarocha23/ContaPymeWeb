@@ -15,6 +15,7 @@ const SALDO_SQL = `
     SELECT SUM(cx.saldo_pendiente)
       FROM cuentas_por_cobrar cx
      WHERE cx.id_cliente = c.id_cliente
+       AND cx.empresa_id = c.empresa_id
        AND LOWER(COALESCE(cx.estatus, '')) NOT LIKE 'cancelad%'
   ), 0)`;
 
@@ -27,11 +28,12 @@ const COLUMNAS = `
 `;
 
 /** Lista con búsqueda por nombre y filtros. */
-export async function list({ q, estatus, ciudad, estado, colonia, adeudo } = {}) {
+export async function list({ q, estatus, ciudad, estado, colonia, adeudo } = {}, empresaId = null) {
   const params = [];
   const add = (v) => { params.push(v); return `$${params.length}`; };
   let where = 'WHERE 1=1';
 
+  if (empresaId) where += ` AND c.empresa_id = ${add(empresaId)}`;
   if (q) {
     const p = add(`%${q}%`);
     where += ` AND CONCAT_WS(' ', c.nombre_cliente, c.apellido_paterno, c.apellido_materno) ILIKE ${p}`;
@@ -58,15 +60,15 @@ export async function findById(id) {
   return rows[0] || null;
 }
 
-export async function insert(d) {
+export async function insert(d, empresaId = 1) {
   const { rows } = await pool.query(
     `INSERT INTO clientes
        (nombre_cliente, apellido_paterno, apellido_materno, calle, num_exterior,
-        colonia, codigo_postal, ciudad, estado, telefono, correo, estatus)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, 1)
+        colonia, codigo_postal, ciudad, estado, telefono, correo, estatus, empresa_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11, 1, $12)
      RETURNING id_cliente`,
     [d.nombre_cliente, d.apellido_paterno, d.apellido_materno, d.calle, d.num_exterior,
-     d.colonia, d.codigo_postal, d.ciudad, d.estado, d.telefono, d.correo]
+     d.colonia, d.codigo_postal, d.ciudad, d.estado, d.telefono, d.correo, empresaId]
   );
   return findById(rows[0].id_cliente);
 }
@@ -91,7 +93,7 @@ export async function updateStatus(id, estatus) {
 }
 
 /** Tarjetas de resumen del catálogo. */
-export async function stats() {
+export async function stats(empresaId = null) {
   const { rows } = await pool.query(`
     SELECT
       COUNT(*)::int AS total,
@@ -99,15 +101,17 @@ export async function stats() {
       COUNT(*) FILTER (WHERE c.estatus = 0)::int AS inactivos,
       COUNT(*) FILTER (WHERE ${SALDO_SQL} > 0)::int AS con_adeudo
     FROM clientes c
-  `);
+    WHERE ($1::int IS NULL OR c.empresa_id = $1)
+  `, [empresaId]);
   return rows[0];
 }
 
 /** Valores para llenar los selectores de filtro (ciudad, estado, colonia). */
-export async function opciones() {
+export async function opciones(empresaId = null) {
   const distinct = async (col) => {
     const { rows } = await pool.query(
-      `SELECT DISTINCT ${col} AS v FROM clientes WHERE ${col} IS NOT NULL ORDER BY ${col}`
+      `SELECT DISTINCT ${col} AS v FROM clientes WHERE ${col} IS NOT NULL AND ($1::int IS NULL OR empresa_id = $1) ORDER BY ${col}`,
+      [empresaId]
     );
     return rows.map((r) => r.v);
   };

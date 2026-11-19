@@ -16,23 +16,23 @@ const detalleMovimiento = (verbo, { anterior, movimiento }) =>
   `Motivo: ${movimiento.motivo}`;
 
 export const getExistencias = asyncHandler(async (req, res) => {
-  res.json({ success: true, data: await inventarioService.listar(req.query) });
+  res.json({ success: true, data: await inventarioService.listar(req.query, req.user.empresa_id) });
 });
 
 export const getStats = asyncHandler(async (req, res) => {
-  res.json({ success: true, data: await inventarioService.estadisticas() });
+  res.json({ success: true, data: await inventarioService.estadisticas(req.user.empresa_id) });
 });
 
 export const getCategorias = asyncHandler(async (req, res) => {
-  res.json({ success: true, data: await inventarioService.listarCategorias() });
+  res.json({ success: true, data: await inventarioService.listarCategorias(req.user.empresa_id) });
 });
 
 export const getStockBajo = asyncHandler(async (req, res) => {
-  res.json({ success: true, data: await inventarioService.productosStockBajo() });
+  res.json({ success: true, data: await inventarioService.productosStockBajo(req.user.empresa_id) });
 });
 
 export const getMovimientos = asyncHandler(async (req, res) => {
-  res.json({ success: true, data: await inventarioService.movimientos(req.query) });
+  res.json({ success: true, data: await inventarioService.movimientos(req.query, req.user.empresa_id) });
 });
 
 export const getExistenciaById = asyncHandler(async (req, res) => {
@@ -40,7 +40,7 @@ export const getExistenciaById = asyncHandler(async (req, res) => {
 });
 
 export const createEntrada = asyncHandler(async (req, res) => {
-  const resultado = await inventarioService.registrarEntrada(req.body, req.user.id_usuario);
+  const resultado = await inventarioService.registrarEntrada(req.body, req.user.id_usuario, req.user.empresa_id);
 
   await auditar(req, 'ENTRADA_INVENTARIO', detalleMovimiento('Entrada manual de', resultado));
 
@@ -52,7 +52,7 @@ export const createEntrada = asyncHandler(async (req, res) => {
 });
 
 export const createSalida = asyncHandler(async (req, res) => {
-  const resultado = await inventarioService.registrarSalida(req.body, req.user.id_usuario);
+  const resultado = await inventarioService.registrarSalida(req.body, req.user.id_usuario, req.user.empresa_id);
 
   await auditar(req, 'SALIDA_INVENTARIO', detalleMovimiento('Salida manual de', resultado));
 
@@ -64,7 +64,7 @@ export const createSalida = asyncHandler(async (req, res) => {
 });
 
 export const createAjuste = asyncHandler(async (req, res) => {
-  const resultado = await inventarioService.registrarAjuste(req.body, req.user.id_usuario);
+  const resultado = await inventarioService.registrarAjuste(req.body, req.user.id_usuario, req.user.empresa_id);
 
   await auditar(req, 'AJUSTE_INVENTARIO', detalleMovimiento('Ajuste de inventario de', resultado));
 

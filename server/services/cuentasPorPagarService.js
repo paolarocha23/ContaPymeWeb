@@ -13,8 +13,8 @@ import {
 } from '../repositories/gastosRepository.js';
 import { AppError } from '../utils/http.js';
 
-export const obtenerCuentas = async (filtros) => {
-    return await consultarCuentas(filtros);
+export const obtenerCuentas = async (filtros, empresaId = null) => {
+    return await consultarCuentas(filtros, empresaId);
 };
 
 export const obtenerCuentaPorId = async (id) => {
@@ -32,12 +32,12 @@ export const obtenerPagos = async (id) => {
     return await consultarPagos(id);
 };
 
-export const obtenerResumen = async () => {
-    return await consultarResumen();
+export const obtenerResumen = async (empresaId = null) => {
+    return await consultarResumen(empresaId);
 };
 
 // Registrar un pago parcial o total de CxP
-export const registrarPago = async (idCxp, datos, idUsuario) => {
+export const registrarPago = async (idCxp, datos, idUsuario, empresaId = null) => {
     const id = Number(idCxp);
     const monto = Number(datos?.monto);
 
@@ -137,7 +137,8 @@ export const registrarPago = async (idCxp, datos, idUsuario) => {
             monto: monto.toFixed(2),
             forma_pago: datos.forma_pago,
             id_usuario: Number(idUsuario),
-            observaciones: datos.observaciones?.trim() || null
+            observaciones: datos.observaciones?.trim() || null,
+            empresa_id: empresaId
         }, client);
 
         // Actualizar el saldo y estatus.
@@ -159,7 +160,8 @@ export const registrarPago = async (idCxp, datos, idUsuario) => {
                 monto: pago.monto,
                 origen: 'cxp',
                 id_referencia: pago.id_pago,
-                id_usuario: Number(idUsuario)
+                id_usuario: Number(idUsuario),
+                empresa_id: empresaId
             }, client);
         }
 

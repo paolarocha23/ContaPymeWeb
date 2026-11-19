@@ -30,17 +30,17 @@ async function obtenerExistenciaOFallar(idParam) {
   return producto;
 }
 
-export const listar = (query) => repo.listarExistencias(normalizarFiltrosExistencias(query));
+export const listar = (query, empresaId = null) => repo.listarExistencias(normalizarFiltrosExistencias(query), empresaId);
 
-export const estadisticas = () => repo.stats();
+export const estadisticas = (empresaId = null) => repo.stats(empresaId);
 
-export const productosStockBajo = () => repo.stockBajo();
+export const productosStockBajo = (empresaId = null) => repo.stockBajo(empresaId);
 
-export const listarCategorias = () => productoRepo.categoriasActivas();
+export const listarCategorias = (empresaId = null) => productoRepo.categoriasActivas(empresaId);
 
-export async function movimientos(query) {
+export async function movimientos(query, empresaId = null) {
   const filtros = normalizarFiltrosMovimientos(query);
-  const { total, items } = await repo.listarMovimientos(filtros);
+  const { total, items } = await repo.listarMovimientos(filtros, empresaId);
 
   return { total, pagina: filtros.pagina, limite: filtros.limite, items };
 }
@@ -60,7 +60,7 @@ export async function obtener(idParam) {
  * Bloquea el producto, calcula la nueva existencia, valida (RDF0805),
  * actualiza el stock y deja el movimiento, todo en una sola transacción.
  */
-async function registrarMovimiento(tipo, body, id_usuario) {
+async function registrarMovimiento(tipo, body, id_usuario, empresaId = null) {
   const datos = validarMovimiento(body, tipo);
 
   const { anterior, movimiento } = await repo.conTransaccion(async (client) => {
@@ -116,7 +116,8 @@ async function registrarMovimiento(tipo, body, id_usuario) {
       existencia_despues: despues,
       motivo: datos.motivo,
       origen: tipo === 'ajuste' ? ORIGEN_AJUSTE : ORIGEN_MANUAL,
-      id_usuario
+      id_usuario,
+      empresa_id: empresaId
     });
 
     return {
@@ -138,6 +139,6 @@ async function registrarMovimiento(tipo, body, id_usuario) {
   return { anterior, producto, movimiento };
 }
 
-export const registrarEntrada = (body, idUsuario) => registrarMovimiento('entrada', body, idUsuario);
-export const registrarSalida = (body, idUsuario) => registrarMovimiento('salida', body, idUsuario);
-export const registrarAjuste = (body, idUsuario) => registrarMovimiento('ajuste', body, idUsuario);
+export const registrarEntrada = (body, idUsuario, empresaId = null) => registrarMovimiento('entrada', body, idUsuario, empresaId);
+export const registrarSalida = (body, idUsuario, empresaId = null) => registrarMovimiento('salida', body, idUsuario, empresaId);
+export const registrarAjuste = (body, idUsuario, empresaId = null) => registrarMovimiento('ajuste', body, idUsuario, empresaId);

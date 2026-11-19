@@ -6,11 +6,12 @@ const COLUMNAS = `
 `;
 
 /** Lista con búsqueda por empresa/contacto y filtro de estatus. */
-export async function list({ q, estatus } = {}) {
+export async function list({ q, estatus } = {}, empresaId = null) {
   const params = [];
   const add = (v) => { params.push(v); return `$${params.length}`; };
   let where = 'WHERE 1=1';
 
+  if (empresaId) where += ` AND p.empresa_id = ${add(empresaId)}`;
   if (q) {
     const p = add(`%${q}%`);
     where += ` AND (p.nombre_empresa ILIKE ${p} OR p.nombre_contacto ILIKE ${p})`;
@@ -32,14 +33,14 @@ export async function findById(id) {
   return rows[0] || null;
 }
 
-export async function insert(d) {
+export async function insert(d, empresaId = 1) {
   const { rows } = await pool.query(
     `INSERT INTO proveedores
-       (nombre_empresa, nombre_contacto, telefono, correo, calle, colonia, ciudad, estado, estatus)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8, 1)
+       (nombre_empresa, nombre_contacto, telefono, correo, calle, colonia, ciudad, estado, estatus, empresa_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8, 1, $9)
      RETURNING id_proveedor`,
     [d.nombre_empresa, d.nombre_contacto, d.telefono, d.correo,
-     d.calle, d.colonia, d.ciudad, d.estado]
+     d.calle, d.colonia, d.ciudad, d.estado, empresaId]
   );
   return findById(rows[0].id_proveedor);
 }
@@ -62,14 +63,15 @@ export async function updateStatus(id, estatus) {
 }
 
 /** Tarjetas de resumen del catálogo. */
-export async function stats() {
+export async function stats(empresaId = null) {
   const { rows } = await pool.query(`
     SELECT
       COUNT(*)::int AS total,
       COUNT(*) FILTER (WHERE estatus = 1)::int AS activos,
       COUNT(*) FILTER (WHERE estatus = 0)::int AS inactivos
     FROM proveedores
-  `);
+    WHERE ($1::int IS NULL OR empresa_id = $1)
+  `, [empresaId]);
   return rows[0];
 }
 

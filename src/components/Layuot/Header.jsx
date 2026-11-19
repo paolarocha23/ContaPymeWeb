@@ -356,6 +356,11 @@ export default function Header({ user, title, subtitle, onNavigate, onOpenChange
             <div className="cpy-user-popover">
               <strong>{fullName}</strong>
               <span>{user?.rol_nombre || 'Usuario'}</span>
+              {user?.empresa_nombre && (
+                <span className="cpy-user-empresa" style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 500 }}>
+                  🏢 {user.empresa_nombre}
+                </span>
+              )}
               <button type="button" onClick={() => { setUserMenuOpen(false); onOpenChangePassword(); }}>
                 <LockKeyhole size={15} /> Cambiar contraseña
               </button>

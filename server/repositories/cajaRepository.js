@@ -1,7 +1,7 @@
 import pool from '../config/db.js';
 
 // Consultar movimientos de Caja
-export async function obtenerMovimientosCaja(filtros = {}) {
+export async function obtenerMovimientosCaja(filtros = {}, empresaId = null) {
   const {
     fecha_inicio,
     fecha_fin,
@@ -29,6 +29,12 @@ export async function obtenerMovimientosCaja(filtros = {}) {
 
   const valores = [];
   let posicion = 1;
+
+  if (empresaId) {
+    consulta += ` AND m.empresa_id = $${posicion}`;
+    valores.push(empresaId);
+    posicion++;
+  }
 
   if (fecha_inicio) {
     consulta += ` AND m.fecha >= $${posicion}`;
@@ -91,7 +97,8 @@ export async function registrarMovimientoManual(datos, client = pool) {
     tipo,
     concepto,
     monto,
-    id_usuario
+    id_usuario,
+    empresa_id
   } = datos;
 
   const consulta = `
@@ -102,7 +109,8 @@ export async function registrarMovimientoManual(datos, client = pool) {
       monto,
       origen,
       id_referencia,
-      id_usuario
+      id_usuario,
+      empresa_id
     )
     VALUES (
       COALESCE($1::timestamp, CURRENT_TIMESTAMP),
@@ -111,7 +119,8 @@ export async function registrarMovimientoManual(datos, client = pool) {
       $4,
       'manual',
       NULL,
-      $5
+      $5,
+      $6
     )
     RETURNING *
   `;
@@ -121,14 +130,15 @@ export async function registrarMovimientoManual(datos, client = pool) {
     tipo,
     concepto,
     monto,
-    id_usuario
+    id_usuario,
+    empresa_id ?? 1
   ]);
 
   return rows[0];
 }
 
 // Consultar resumen de Caja
-export async function obtenerResumenCaja(filtros = {}) {
+export async function obtenerResumenCaja(filtros = {}, empresaId = null) {
   const { fecha_inicio, fecha_fin } = filtros;
 
   let consulta = `
@@ -157,6 +167,12 @@ export async function obtenerResumenCaja(filtros = {}) {
 
   const valores = [];
   let posicion = 1;
+
+  if (empresaId) {
+    consulta += ` AND empresa_id = $${posicion}`;
+    valores.push(empresaId);
+    posicion++;
+  }
 
   if (fecha_inicio) {
     consulta += ` AND fecha >= $${posicion}`;

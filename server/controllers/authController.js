@@ -18,7 +18,7 @@ function maskEmail(email) {
  */
 export async function login(req, res) {
   try {
-    const { nombre_usuario, contrasena } = req.body;
+    const { nombre_usuario, contrasena, empresa_id } = req.body;
 
     if (!nombre_usuario || !contrasena) {
       return res.status(400).json({
@@ -27,8 +27,8 @@ export async function login(req, res) {
       });
     }
 
-    // Buscar usuario y verificar datos
-    const { rows } = await pool.query(`
+    // Buscar usuarios coincidentes y verificar datos
+    let query = `
       SELECT 
         u.id_usuario, 
         u.nombre, 
@@ -39,19 +39,31 @@ export async function login(req, res) {
         u.correo, 
         u.id_rol, 
         u.estatus AS usuario_estatus,
+        u.empresa_id,
+        e.nombre AS empresa_nombre,
+        e.activo AS empresa_activa,
         r.nombre AS rol_nombre,
         r.estatus AS rol_estatus
       FROM usuarios u
       JOIN roles r ON r.id_rol = u.id_rol
-      WHERE u.nombre_usuario = $1 OR u.correo = $1
-      LIMIT 1
-    `, [nombre_usuario.trim()]);
+      LEFT JOIN empresas e ON e.id_empresa = u.empresa_id
+      WHERE (u.nombre_usuario = $1 OR u.correo = $1)
+    `;
+    const params = [nombre_usuario.trim()];
+
+    if (empresa_id !== undefined && empresa_id !== null && empresa_id !== '') {
+      params.push(Number(empresa_id));
+      query += ` AND u.empresa_id = $${params.length}`;
+    }
+
+    const { rows } = await pool.query(query, params);
 
     if (rows.length === 0) {
       await registrarBitacora(req, {
         nombre_usuario,
         accion: 'INICIO_SESION_FALLIDO',
-        detalle: 'Intento con usuario inexistente'
+        detalle: 'Intento con usuario inexistente',
+        empresa_id: empresa_id || 1
       });
       return res.status(401).json({
         success: false,
@@ -59,7 +71,33 @@ export async function login(req, res) {
       });
     }
 
-    const user = rows[0];
+    let user = rows[0];
+    if (rows.length > 1) {
+      const matchingUsers = [];
+      for (const candidate of rows) {
+        const isMatch = await bcrypt.compare(contrasena, candidate.contrasena);
+        if (isMatch) matchingUsers.push(candidate);
+      }
+
+      if (matchingUsers.length === 1) {
+        user = matchingUsers[0];
+      } else if (matchingUsers.length > 1) {
+        return res.status(400).json({
+          success: false,
+          requiresEmpresaSelection: true,
+          message: 'Existe más de un usuario registrado con ese nombre o correo. Por favor, selecciona tu empresa.',
+          empresas: matchingUsers.map((u) => ({
+            id_empresa: u.empresa_id,
+            nombre: u.empresa_nombre || `Empresa #${u.empresa_id}`
+          }))
+        });
+      } else {
+        return res.status(401).json({
+          success: false,
+          message: 'Usuario o contraseña incorrectos.'
+        });
+      }
+    }
 
     // Validar contraseña cifrada con bcrypt / argon2
     const passwordMatch = await bcrypt.compare(contrasena, user.contrasena);
@@ -68,7 +106,8 @@ export async function login(req, res) {
         id_usuario: user.id_usuario,
         nombre_usuario: user.nombre_usuario,
         accion: 'INICIO_SESION_FALLIDO',
-        detalle: 'Contraseña incorrecta'
+        detalle: 'Contraseña incorrecta',
+        empresa_id: user.empresa_id
       });
       return res.status(401).json({
         success: false,
@@ -82,12 +121,22 @@ export async function login(req, res) {
         id_usuario: user.id_usuario,
         nombre_usuario: user.nombre_usuario,
         accion: 'ACCESO_DENEGADO_USUARIO_INACTIVO',
-        detalle: 'El usuario se encuentra inactivo'
+        detalle: 'El usuario se encuentra inactivo',
+        empresa_id: user.empresa_id
       });
       return res.status(403).json({
         success: false,
         code: 'USER_INACTIVE',
         message: 'Tu cuenta está inactiva. Comunícate con el Administrador del sistema.'
+      });
+    }
+
+    // Verificar si la empresa está activa
+    if (user.empresa_activa !== null && user.empresa_activa !== undefined && Number(user.empresa_activa) !== 1) {
+      return res.status(403).json({
+        success: false,
+        code: 'EMPRESA_INACTIVE',
+        message: 'La empresa a la que pertenece esta cuenta está inactiva.'
       });
     }
 
@@ -97,7 +146,8 @@ export async function login(req, res) {
         id_usuario: user.id_usuario,
         nombre_usuario: user.nombre_usuario,
         accion: 'ACCESO_DENEGADO_ROL_INACTIVO',
-        detalle: `El rol '${user.rol_nombre}' asignado al usuario está inactivo`
+        detalle: `El rol '${user.rol_nombre}' asignado al usuario está inactivo`,
+        empresa_id: user.empresa_id
       });
       return res.status(403).json({
         success: false,
@@ -118,12 +168,11 @@ export async function login(req, res) {
       [user.id_usuario]
     );
 
-    // Guardar nuevo código. La expiración se calcula en PostgreSQL para
-    // evitar desfases de zona horaria entre Node y Supabase.
+    // Guardar nuevo código con empresa_id.
     await pool.query(
-      `INSERT INTO codigos_2fa (id_usuario, codigo, expiracion, usado)
-       VALUES ($1, $2, NOW() + INTERVAL '10 minutes', FALSE)`,
-      [user.id_usuario, code]
+      `INSERT INTO codigos_2fa (id_usuario, codigo, expiracion, usado, empresa_id)
+       VALUES ($1, $2, NOW() + INTERVAL '10 minutes', FALSE, $3)`,
+      [user.id_usuario, code, user.empresa_id || 1]
     );
 
     // Enviar código al correo registrado
@@ -134,7 +183,8 @@ export async function login(req, res) {
       id_usuario: user.id_usuario,
       nombre_usuario: user.nombre_usuario,
       accion: 'INICIO_SESION_PASO1_EXITOSO',
-      detalle: `Código 2FA generado y enviado a ${maskEmail(user.correo)}`
+      detalle: `Código 2FA generado y enviado a ${maskEmail(user.correo)}`,
+      empresa_id: user.empresa_id
     });
 
     // Generar token temporal para el paso 2 de verificación
@@ -142,6 +192,7 @@ export async function login(req, res) {
       {
         id_usuario: user.id_usuario,
         nombre_usuario: user.nombre_usuario,
+        empresa_id: user.empresa_id,
         step: '2fa_pending'
       },
       process.env.JWT_2FA_SECRET || 'contapyme_temp_2fa_token_key_abcdef123456',
@@ -280,11 +331,15 @@ export async function verify2FA(req, res) {
         u.id_rol, 
         u.estatus AS usuario_estatus,
         u.fecha_creacion,
+        u.empresa_id,
+        e.nombre AS empresa_nombre,
+        e.activo AS empresa_activa,
         r.nombre AS rol_nombre,
         r.estatus AS rol_estatus,
         r.permisos
       FROM usuarios u
       JOIN roles r ON r.id_rol = u.id_rol
+      LEFT JOIN empresas e ON e.id_empresa = u.empresa_id
       WHERE u.id_usuario = $1
       LIMIT 1
     `, [id_usuario]);
@@ -309,6 +364,22 @@ export async function verify2FA(req, res) {
       });
     }
 
+    if (!user.empresa_id) {
+      return res.status(403).json({
+        success: false,
+        code: 'NO_EMPRESA_ASSIGNED',
+        message: 'Tu cuenta no tiene una empresa asignada. Comunícate con el Administrador.'
+      });
+    }
+
+    if (user.empresa_activa !== null && user.empresa_activa !== undefined && Number(user.empresa_activa) !== 1) {
+      return res.status(403).json({
+        success: false,
+        code: 'EMPRESA_INACTIVE',
+        message: 'La empresa asignada a tu cuenta se encuentra inactiva.'
+      });
+    }
+
     // Parsear permisos
     let permisos = [];
     if (user.permisos) {
@@ -325,7 +396,8 @@ export async function verify2FA(req, res) {
         id_usuario: user.id_usuario,
         nombre_usuario: user.nombre_usuario,
         id_rol: user.id_rol,
-        rol_nombre: user.rol_nombre
+        rol_nombre: user.rol_nombre,
+        empresa_id: user.empresa_id
       },
       process.env.JWT_SECRET || 'contapyme_super_secret_jwt_key_2026_xyz987654321',
       { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
@@ -336,7 +408,8 @@ export async function verify2FA(req, res) {
       id_usuario: user.id_usuario,
       nombre_usuario: user.nombre_usuario,
       accion: 'INICIO_SESION_2FA_EXITOSO',
-      detalle: 'Autenticación en 2 pasos completada exitosamente'
+      detalle: 'Autenticación en 2 pasos completada exitosamente',
+      empresa_id: user.empresa_id
     });
 
     return res.json({
@@ -355,6 +428,8 @@ export async function verify2FA(req, res) {
         rol_nombre: user.rol_nombre,
         estatus: user.usuario_estatus,
         fecha_creacion: user.fecha_creacion,
+        empresa_id: user.empresa_id,
+        empresa_nombre: user.empresa_nombre || `Empresa #${user.empresa_id}`,
         permisos
       }
     });
@@ -389,7 +464,7 @@ export async function resend2FA(req, res) {
     }
 
     const { rows: users } = await pool.query(
-      'SELECT correo, nombre_usuario FROM usuarios WHERE id_usuario = $1',
+      'SELECT correo, nombre_usuario, empresa_id FROM usuarios WHERE id_usuario = $1',
       [decoded.id_usuario]
     );
 
@@ -409,11 +484,11 @@ export async function resend2FA(req, res) {
       [decoded.id_usuario]
     );
 
-    // Insertar nuevo código con expiración calculada por PostgreSQL
+    // Insertar nuevo código con expiración calculada por PostgreSQL y empresa_id
     await pool.query(
-      `INSERT INTO codigos_2fa (id_usuario, codigo, expiracion, usado)
-       VALUES ($1, $2, NOW() + INTERVAL '10 minutes', FALSE)`,
-      [decoded.id_usuario, newCode]
+      `INSERT INTO codigos_2fa (id_usuario, codigo, expiracion, usado, empresa_id)
+       VALUES ($1, $2, NOW() + INTERVAL '10 minutes', FALSE, $3)`,
+      [decoded.id_usuario, newCode, user.empresa_id || 1]
     );
 
     await send2FACode(user.correo, user.nombre_usuario, newCode);
@@ -422,7 +497,8 @@ export async function resend2FA(req, res) {
       id_usuario: decoded.id_usuario,
       nombre_usuario: user.nombre_usuario,
       accion: 'REENVIO_CODIGO_2FA',
-      detalle: 'Nuevo código de verificación solicitado'
+      detalle: 'Nuevo código de verificación solicitado',
+      empresa_id: user.empresa_id
     });
 
     return res.json({
@@ -501,7 +577,7 @@ export async function forgotPassword(req, res) {
     }
 
     const { rows } = await pool.query(`
-      SELECT id_usuario, nombre_usuario, correo, estatus
+      SELECT id_usuario, nombre_usuario, correo, estatus, empresa_id
       FROM usuarios
       WHERE correo = $1 OR nombre_usuario = $1
       LIMIT 1
@@ -536,11 +612,11 @@ export async function forgotPassword(req, res) {
       [user.id_usuario]
     );
 
-    // Guardar token en tabla tokens_recuperacion
+    // Guardar token en tabla tokens_recuperacion con empresa_id
     await pool.query(
-      `INSERT INTO tokens_recuperacion (id_usuario, token, expiracion, usado)
-       VALUES ($1, $2, NOW() + INTERVAL '1 hour', FALSE)`,
-      [user.id_usuario, token]
+      `INSERT INTO tokens_recuperacion (id_usuario, token, expiracion, usado, empresa_id)
+       VALUES ($1, $2, NOW() + INTERVAL '1 hour', FALSE, $3)`,
+      [user.id_usuario, token, user.empresa_id || 1]
     );
 
     const clientUrl = req.headers['origin'] || 'http://localhost:5173';
@@ -552,7 +628,8 @@ export async function forgotPassword(req, res) {
       id_usuario: user.id_usuario,
       nombre_usuario: user.nombre_usuario,
       accion: 'SOLICITUD_RECUPERACION_CONTRASENA',
-      detalle: `Token de restablecimiento generado y enviado a ${maskEmail(user.correo)}`
+      detalle: `Token de restablecimiento generado y enviado a ${maskEmail(user.correo)}`,
+      empresa_id: user.empresa_id
     });
 
     return res.json({

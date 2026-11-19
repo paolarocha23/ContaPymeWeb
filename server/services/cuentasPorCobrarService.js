@@ -5,8 +5,8 @@ import { AppError } from '../utils/http.js';
 
 const FORMAS_PAGO = ['efectivo', 'tarjeta', 'transfer'];
 
-export async function listarCuentas(filtros) {
-  return repo.obtenerCuentas(filtros);
+export async function listarCuentas(filtros, empresaId = null) {
+  return repo.obtenerCuentas(filtros, empresaId);
 }
 
 export async function obtenerCuenta(id) {
@@ -29,11 +29,11 @@ export async function listarPagos(id) {
   return repo.obtenerPagos(id);
 }
 
-export async function obtenerIndicadores() {
-  return repo.obtenerResumen();
+export async function obtenerIndicadores(empresaId = null) {
+  return repo.obtenerResumen(empresaId);
 }
 
-export async function registrarCobro(id, datos, idUsuario) {
+export async function registrarCobro(id, datos, idUsuario, empresaId = null) {
   const monto = Number(datos.monto);
   const formaPago = String(datos.forma_pago || '').toLowerCase();
 
@@ -106,7 +106,8 @@ export async function registrarCobro(id, datos, idUsuario) {
       monto,
       forma_pago: formaPago,
       id_usuario: idUsuario,
-      observaciones: datos.observaciones
+      observaciones: datos.observaciones,
+      empresa_id: empresaId
     });
 
     // 2. Actualizar el saldo de la cuenta.
@@ -125,7 +126,7 @@ export async function registrarCobro(id, datos, idUsuario) {
     );
 
     // 4. Obtener la categoría de cobros.
-    const idCategoria = await repo.obtenerCategoriaCobros(client);
+    const idCategoria = await repo.obtenerCategoriaCobros(client, empresaId);
 
     if (!idCategoria) {
       throw new AppError(
@@ -148,7 +149,8 @@ export async function registrarCobro(id, datos, idUsuario) {
         forma_pago: formaPago,
         origen: 'cobro',
         id_cobro: cobro.id_cobro,
-        id_usuario: idUsuario
+        id_usuario: idUsuario,
+        empresa_id: empresaId
       }
     );
 

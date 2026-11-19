@@ -13,17 +13,17 @@ const auditar = (req, accion, detalle) =>
 
 //Obtiene la lista de clientes.
 export const getClientes = asyncHandler(async (req, res) => {
-  res.json({ success: true, data: await clienteService.listar(req.query) });
+  res.json({ success: true, data: await clienteService.listar(req.query, req.user.empresa_id) });
 });
 
 //Obtiene las estadísticas(aparecen en las cards) generales del catálogo de clientes.
 export const getStats = asyncHandler(async (req, res) => {
-  res.json({ success: true, data: await clienteService.estadisticas() });
+  res.json({ success: true, data: await clienteService.estadisticas(req.user.empresa_id) });
 });
 
 //Obtiene las opciones disponibles para los filtros del catálogo.
 export const getOpciones = asyncHandler(async (req, res) => {
-  res.json({ success: true, data: await clienteService.opciones() });
+  res.json({ success: true, data: await clienteService.opciones(req.user.empresa_id) });
 });
 
 //Obtiene la información de un cliente específico.
@@ -38,7 +38,7 @@ export const getHistorial = asyncHandler(async (req, res) => {
 
 //Registra un nuevo cliente.
 export const createCliente = asyncHandler(async (req, res) => {
-  const cliente = await clienteService.crear(req.body);
+  const cliente = await clienteService.crear(req.body, req.user.empresa_id);
   await auditar(req, 'CREACION_CLIENTE',
     `Se registró al cliente "${cliente.nombre_completo}" (ID: ${cliente.id_cliente})`);
   res.status(201).json({

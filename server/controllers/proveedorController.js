@@ -12,11 +12,11 @@ const auditar = (req, accion, detalle) =>
   });
 
 export const getProveedores = asyncHandler(async (req, res) => {
-  res.json({ success: true, data: await proveedorService.listar(req.query) });
+  res.json({ success: true, data: await proveedorService.listar(req.query, req.user.empresa_id) });
 });
 
 export const getStats = asyncHandler(async (req, res) => {
-  res.json({ success: true, data: await proveedorService.estadisticas() });
+  res.json({ success: true, data: await proveedorService.estadisticas(req.user.empresa_id) });
 });
 
 export const getProveedorById = asyncHandler(async (req, res) => {
@@ -24,7 +24,7 @@ export const getProveedorById = asyncHandler(async (req, res) => {
 });
 
 export const createProveedor = asyncHandler(async (req, res) => {
-  const proveedor = await proveedorService.crear(req.body);
+  const proveedor = await proveedorService.crear(req.body, req.user.empresa_id);
   await auditar(req, 'CREACION_PROVEEDOR',
     `Se registró al proveedor "${proveedor.nombre_empresa}" (ID: ${proveedor.id_proveedor})`);
   res.status(201).json({

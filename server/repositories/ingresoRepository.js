@@ -53,7 +53,7 @@ export async function conTransaccion(fn) {
   }
 }
 
-export async function list({ q, desde, hasta, id_categoria, origen, forma_pago, estatus } = {}) {
+export async function list({ q, desde, hasta, id_categoria, origen, forma_pago, estatus } = {}, empresaId = null) {
   const params = [];
   const add = (v) => {
     params.push(v);
@@ -61,6 +61,7 @@ export async function list({ q, desde, hasta, id_categoria, origen, forma_pago, 
   };
 
   let where = 'WHERE 1=1';
+  if (empresaId) where += ` AND i.empresa_id = ${add(empresaId)}`;
 
   if (q) {
     const p = add(`%${q}%`);
@@ -118,11 +119,11 @@ export async function insert(client, d) {
   const { rows } = await client.query(`
     INSERT INTO ingresos (
       fecha, concepto, id_categoria, monto, forma_pago,
-      origen, id_venta, id_cobro, id_usuario, estatus
+      origen, id_venta, id_cobro, id_usuario, estatus, empresa_id
     )
     VALUES (
       COALESCE($1::date + LOCALTIME, CURRENT_TIMESTAMP),
-      $2, $3, $4, $5, $6, $7, $8, $9, 'activo'
+      $2, $3, $4, $5, $6, $7, $8, $9, 'activo', $10
     )
     RETURNING id_ingreso, fecha
   `, [
@@ -134,7 +135,8 @@ export async function insert(client, d) {
     d.origen,
     d.id_venta ?? null,
     d.id_cobro ?? null,
-    d.id_usuario
+    d.id_usuario,
+    d.empresa_id ?? 1
   ]);
 
   return rows[0];
@@ -167,9 +169,9 @@ export async function marcarCancelado(client, id) {
 // RDF1304 / RDF1105 – movimientos de caja ligados al ingreso (origen "ingreso")
 export async function insertarMovimientoCaja(client, d) {
   await client.query(`
-    INSERT INTO movimientos_caja (fecha, tipo, concepto, monto, origen, id_referencia, id_usuario)
-    VALUES (COALESCE($1, CURRENT_TIMESTAMP), $2, $3, $4, 'ingreso', $5, $6)
-  `, [d.fecha ?? null, d.tipo, d.concepto, d.monto, d.id_referencia, d.id_usuario]);
+    INSERT INTO movimientos_caja (fecha, tipo, concepto, monto, origen, id_referencia, id_usuario, empresa_id)
+    VALUES (COALESCE($1, CURRENT_TIMESTAMP), $2, $3, $4, 'ingreso', $5, $6, $7)
+  `, [d.fecha ?? null, d.tipo, d.concepto, d.monto, d.id_referencia, d.id_usuario, d.empresa_id ?? 1]);
 }
 
 /**
@@ -191,7 +193,7 @@ export async function activosPorOrigen(client, id_venta, ids_cobro = []) {
   return rows.map(normalizar);
 }
 
-export async function stats() {
+export async function stats(empresaId = null) {
   const { rows } = await pool.query(`
     SELECT
       COALESCE(SUM(monto) FILTER (WHERE estatus = 'activo'), 0) AS total,
@@ -213,7 +215,8 @@ export async function stats() {
       COUNT(*) FILTER (WHERE estatus = 'cancelado')::int AS cancelados,
       COUNT(*) FILTER (WHERE estatus = 'activo' AND origen = 'otro')::int AS manuales
     FROM ingresos
-  `);
+    WHERE ($1::int IS NULL OR empresa_id = $1)
+  `, [empresaId]);
 
   const r = rows[0];
 
@@ -229,12 +232,13 @@ export async function stats() {
 }
 
 // Incluye inactivas: un ingreso histórico puede tener una categoría que ya se desactivó.
-export async function categorias() {
+export async function categorias(empresaId = null) {
   const { rows } = await pool.query(`
     SELECT id_categoria, nombre, estatus
     FROM categorias
+    WHERE ($1::int IS NULL OR empresa_id = $1)
     ORDER BY nombre ASC
-  `);
+  `, [empresaId]);
 
   return rows;
 }

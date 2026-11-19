@@ -4,7 +4,7 @@ import pool from '../config/db.js';
  * Obtiene cuentas por cobrar vencidas o próximas a vencer.
  * Solo incluye cuentas con saldo pendiente mayor a cero.
  */
-export async function obtenerAlertasCxc(diasAnticipacion = 7) {
+export async function obtenerAlertasCxc(diasAnticipacion = 7, empresaId = null) {
     const { rows } = await pool.query(`
     SELECT
       cxc.id_cxc,
@@ -40,10 +40,11 @@ export async function obtenerAlertasCxc(diasAnticipacion = 7) {
     WHERE cxc.saldo_pendiente > 0
       AND cxc.fecha_vencimiento IS NOT NULL
       AND cxc.fecha_vencimiento <= CURRENT_DATE + $1::integer
+      AND ($2::int IS NULL OR cxc.empresa_id = $2)
     ORDER BY
       cxc.fecha_vencimiento ASC,
       cxc.id_cxc DESC
-  `, [diasAnticipacion]);
+  `, [diasAnticipacion, empresaId]);
 
     return rows;
 }
@@ -52,7 +53,7 @@ export async function obtenerAlertasCxc(diasAnticipacion = 7) {
  * Obtiene cuentas por pagar vencidas o próximas a vencer.
  * Solo incluye cuentas con saldo pendiente mayor a cero.
  */
-export async function obtenerAlertasCxp(diasAnticipacion = 7) {
+export async function obtenerAlertasCxp(diasAnticipacion = 7, empresaId = null) {
     const { rows } = await pool.query(`
     SELECT
       cxp.id_cxp,
@@ -79,10 +80,11 @@ export async function obtenerAlertasCxp(diasAnticipacion = 7) {
     WHERE cxp.saldo_pendiente > 0
       AND cxp.fecha_vencimiento IS NOT NULL
       AND cxp.fecha_vencimiento <= CURRENT_DATE + $1::integer
+      AND ($2::int IS NULL OR cxp.empresa_id = $2)
     ORDER BY
       cxp.fecha_vencimiento ASC,
       cxp.id_cxp DESC
-  `, [diasAnticipacion]);
+  `, [diasAnticipacion, empresaId]);
 
     return rows;
 }

@@ -13,15 +13,15 @@ const auditar = (req, accion, detalle) =>
 const { moneda } = ingresoService;
 
 export const getIngresos = asyncHandler(async (req, res) => {
-  res.json({ success: true, data: await ingresoService.listar(req.query) });
+  res.json({ success: true, data: await ingresoService.listar(req.query, req.user.empresa_id) });
 });
 
 export const getStats = asyncHandler(async (req, res) => {
-  res.json({ success: true, data: await ingresoService.estadisticas() });
+  res.json({ success: true, data: await ingresoService.estadisticas(req.user.empresa_id) });
 });
 
 export const getCategorias = asyncHandler(async (req, res) => {
-  res.json({ success: true, data: await ingresoService.listarCategorias() });
+  res.json({ success: true, data: await ingresoService.listarCategorias(req.user.empresa_id) });
 });
 
 export const getIngresoById = asyncHandler(async (req, res) => {
@@ -29,7 +29,7 @@ export const getIngresoById = asyncHandler(async (req, res) => {
 });
 
 export const createIngreso = asyncHandler(async (req, res) => {
-  const ingreso = await ingresoService.crear(req.body, req.user.id_usuario);
+  const ingreso = await ingresoService.crear(req.body, req.user.id_usuario, req.user.empresa_id);
 
   await auditar(
     req,

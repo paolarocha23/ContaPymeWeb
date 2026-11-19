@@ -11,13 +11,13 @@ async function obtenerOFallar(idParam) {
   return proveedor;
 }
 
-export const listar = (query) => repo.list(normalizarFiltros(query));
+export const listar = (query, empresaId = null) => repo.list(normalizarFiltros(query), empresaId);
 export const obtener = (id) => obtenerOFallar(id);
-export const estadisticas = () => repo.stats();
+export const estadisticas = (empresaId = null) => repo.stats(empresaId);
 
 /** El estatus inicial siempre es activo. */
-export async function crear(body) {
-  return repo.insert(validarProveedor(body));
+export async function crear(body, empresaId = 1) {
+  return repo.insert(validarProveedor(body), empresaId);
 }
 
 /** Se actualizan los datos, nunca el identificador. */

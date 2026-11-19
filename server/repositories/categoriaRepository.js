@@ -3,11 +3,12 @@ import pool from '../config/db.js';
 const COLUMNAS = 'c.id_categoria, c.nombre, c.descripcion, c.estatus';
 
 /** Lista con búsqueda por nombre/descripción y filtro de estatus. Incluye conteo de productos asociados. */
-export async function list({ q, estatus } = {}) {
+export async function list({ q, estatus } = {}, empresaId = null) {
   const params = [];
   const add = (v) => { params.push(v); return `$${params.length}`; };
   let where = 'WHERE 1=1';
 
+  if (empresaId) where += ` AND c.empresa_id = ${add(empresaId)}`;
   if (q) {
     const p = add(`%${q}%`);
     where += ` AND (c.nombre ILIKE ${p} OR c.descripcion ILIKE ${p})`;
@@ -16,7 +17,7 @@ export async function list({ q, estatus } = {}) {
 
   const { rows } = await pool.query(
     `SELECT ${COLUMNAS},
-       COALESCE((SELECT COUNT(*)::int FROM productos pr WHERE pr.id_categoria = c.id_categoria), 0) AS asociados
+       COALESCE((SELECT COUNT(*)::int FROM productos pr WHERE pr.id_categoria = c.id_categoria AND pr.empresa_id = c.empresa_id), 0) AS asociados
      FROM categorias c ${where} ORDER BY c.id_categoria ASC`,
     params
   );
@@ -32,22 +33,24 @@ export async function findById(id) {
 }
 
 /** Busca una categoría por nombre (sin distinguir mayúsculas), excluyendo opcionalmente un id. */
-export async function findByNombre(nombre, excluirId = null) {
+export async function findByNombre(nombre, excluirId = null, empresaId = null) {
   const { rows } = await pool.query(
     `SELECT id_categoria FROM categorias
-     WHERE LOWER(nombre) = LOWER($1) AND ($2::int IS NULL OR id_categoria <> $2)
+     WHERE LOWER(nombre) = LOWER($1)
+       AND ($2::int IS NULL OR id_categoria <> $2)
+       AND ($3::int IS NULL OR empresa_id = $3)
      LIMIT 1`,
-    [nombre, excluirId]
+    [nombre, excluirId, empresaId]
   );
   return rows[0] || null;
 }
 
-export async function insert(d) {
+export async function insert(d, empresaId = 1) {
   const { rows } = await pool.query(
-    `INSERT INTO categorias (nombre, descripcion, estatus)
-     VALUES ($1, $2, 1)
+    `INSERT INTO categorias (nombre, descripcion, estatus, empresa_id)
+     VALUES ($1, $2, 1, $3)
      RETURNING id_categoria`,
-    [d.nombre, d.descripcion]
+    [d.nombre, d.descripcion, empresaId]
   );
   return findById(rows[0].id_categoria);
 }
@@ -66,14 +69,15 @@ export async function updateStatus(id, estatus) {
 }
 
 /** Tarjetas de resumen del catálogo (independientes de los filtros). */
-export async function stats() {
+export async function stats(empresaId = null) {
   const { rows } = await pool.query(`
     SELECT
       COUNT(*)::int AS total,
       COUNT(*) FILTER (WHERE estatus = 1)::int AS activos,
       COUNT(*) FILTER (WHERE estatus = 0)::int AS inactivos
     FROM categorias
-  `);
+    WHERE ($1::int IS NULL OR empresa_id = $1)
+  `, [empresaId]);
   return rows[0];
 }
 

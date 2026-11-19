@@ -7,7 +7,7 @@ import {
 
 // GET /api/caja
 export async function obtenerMovimientos(req, res) {
-  const movimientos = await listarMovimientosCaja(req.query);
+  const movimientos = await listarMovimientosCaja(req.query, req.user.empresa_id);
 
   res.json({
     success: true,
@@ -33,7 +33,8 @@ export async function registrarMovimiento(req, res) {
 
   const movimiento = await crearMovimientoCaja(
     req.body,
-    id_usuario
+    id_usuario,
+    req.user.empresa_id
   );
 
   res.status(201).json({
@@ -45,7 +46,7 @@ export async function registrarMovimiento(req, res) {
 
 // GET /api/caja/resumen
 export async function obtenerResumen(req, res) {
-  const resumen = await consultarResumenCaja(req.query);
+  const resumen = await consultarResumenCaja(req.query, req.user.empresa_id);
 
   res.json({
     success: true,

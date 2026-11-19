@@ -17,7 +17,7 @@ export const obtenerResumenReportes = async (req, res) => {
     const resultado = await obtenerResumenGeneralReportes({
         fecha_inicio,
         fecha_fin
-    });
+    }, req.user.empresa_id);
 
     return res.status(200).json({
         success: true,
@@ -33,7 +33,7 @@ export const obtenerDetalleVentasController = async (req, res) => {
     const resultado = await obtenerReporteDetalleVentas({
         fecha_inicio,
         fecha_fin
-    });
+    }, req.user.empresa_id);
 
     return res.status(200).json({
         success: true,
@@ -49,7 +49,7 @@ export const obtenerDetalleComprasController = async (req, res) => {
     const resultado = await obtenerReporteDetalleCompras({
         fecha_inicio,
         fecha_fin
-    });
+    }, req.user.empresa_id);
 
     return res.status(200).json({
         success: true,
@@ -65,7 +65,7 @@ export const obtenerDetalleIngresosController = async (req, res) => {
     const resultado = await obtenerReporteDetalleIngresos({
         fecha_inicio,
         fecha_fin
-    });
+    }, req.user.empresa_id);
 
     return res.status(200).json({
         success: true,
@@ -81,7 +81,7 @@ export const obtenerDetalleGastosController = async (req, res) => {
     const resultado = await obtenerReporteDetalleGastos({
         fecha_inicio,
         fecha_fin
-    });
+    }, req.user.empresa_id);
 
     return res.status(200).json({
         success: true,
@@ -92,7 +92,7 @@ export const obtenerDetalleGastosController = async (req, res) => {
 
 // Obtener el reporte detallado del inventario actual.
 export const obtenerDetalleInventarioController = async (req, res) => {
-    const resultado = await obtenerReporteDetalleInventario();
+    const resultado = await obtenerReporteDetalleInventario(req.user.empresa_id);
 
     return res.status(200).json({
         success: true,
@@ -103,7 +103,7 @@ export const obtenerDetalleInventarioController = async (req, res) => {
 
 // DETALLE DE CUENTAS POR COBRAR
 export const obtenerDetalleCuentasPorCobrarController = async (req, res) => {
-    const resultado = await obtenerReporteDetalleCuentasPorCobrar();
+    const resultado = await obtenerReporteDetalleCuentasPorCobrar(req.user.empresa_id);
 
     return res.status(200).json({
         success: true,
@@ -114,7 +114,7 @@ export const obtenerDetalleCuentasPorCobrarController = async (req, res) => {
 
 // DETALLE DE CUENTAS POR PAGAR
 export const obtenerDetalleCuentasPorPagarController = async (req, res) => {
-    const resultado = await obtenerReporteDetalleCuentasPorPagar();
+    const resultado = await obtenerReporteDetalleCuentasPorPagar(req.user.empresa_id);
 
     return res.status(200).json({
         success: true,

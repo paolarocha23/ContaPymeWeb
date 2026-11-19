@@ -20,37 +20,37 @@ async function obtenerOFallar(idParam) {
   return producto;
 }
 
-async function verificarCodigoUnico(codigo, excluirId = null) {
-  if (await repo.findByCodigo(codigo, excluirId)) {
+async function verificarCodigoUnico(codigo, excluirId = null, empresaId = null) {
+  if (await repo.findByCodigo(codigo, excluirId, empresaId)) {
     throw new AppError(`El código "${codigo}" ya está registrado.`, 409);
   }
 }
 
-export const listar = (query) => repo.list(normalizarFiltros(query));
+export const listar = (query, empresaId = null) => repo.list(normalizarFiltros(query), empresaId);
 
 // RF0705
 export const obtener = (id) => obtenerOFallar(id);
 
-export const estadisticas = () => repo.stats();
+export const estadisticas = (empresaId = null) => repo.stats(empresaId);
 
-export const listarCategorias = () => repo.categoriasActivas();
+export const listarCategorias = (empresaId = null) => repo.categoriasActivas(empresaId);
 
 // RF0701 – nace activo (el repositorio inserta estatus = 1)
-export async function crear(body) {
+export async function crear(body, empresaId = null) {
   const datos = validarProducto(body);
 
-  await verificarCodigoUnico(datos.codigo);
+  await verificarCodigoUnico(datos.codigo, null, empresaId);
   await categoriaService.obtenerCategoriaActiva(datos.id_categoria);
 
-  return repo.insert(datos);
+  return repo.insert(datos, empresaId);
 }
 
 // RF0703 – el identificador no se modifica
-export async function actualizar(idParam, body) {
+export async function actualizar(idParam, body, empresaId = null) {
   const actual = await obtenerOFallar(idParam);
   const datos = validarProducto(body);
 
-  await verificarCodigoUnico(datos.codigo, actual.id_producto);
+  await verificarCodigoUnico(datos.codigo, actual.id_producto, empresaId || actual.empresa_id);
 
   // Solo se exige categoría activa si la están cambiando.
   if (datos.id_categoria !== Number(actual.id_categoria)) {

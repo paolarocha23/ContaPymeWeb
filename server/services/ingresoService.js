@@ -26,14 +26,15 @@ async function obtenerOFallar(idParam) {
   return ingreso;
 }
 
-function movimientoCaja(client, { tipo, prefijo, concepto, monto, id_ingreso, id_usuario, fecha = null }) {
+function movimientoCaja(client, { tipo, prefijo, concepto, monto, id_ingreso, id_usuario, fecha = null, empresa_id = null }) {
   return repo.insertarMovimientoCaja(client, {
     tipo,
     concepto: corto(`${prefijo}: ${concepto}`),
     monto,
     id_referencia: id_ingreso,
     id_usuario,
-    fecha
+    fecha,
+    empresa_id
   });
 }
 
@@ -52,7 +53,8 @@ async function insertarConCaja(client, d) {
       monto: d.monto,
       id_ingreso: ingreso.id_ingreso,
       id_usuario: d.id_usuario,
-      fecha: ingreso.fecha
+      fecha: ingreso.fecha,
+      empresa_id: d.empresa_id
     });
   }
 
@@ -72,16 +74,17 @@ async function cancelarConCaja(client, ingreso, id_usuario) {
       concepto: ingreso.concepto,
       monto: ingreso.monto,
       id_ingreso: ingreso.id_ingreso,
-      id_usuario
+      id_usuario,
+      empresa_id: ingreso.empresa_id
     });
   }
 }
 
-export const listar = (query) => repo.list(normalizarFiltros(query));
+export const listar = (query, empresaId = null) => repo.list(normalizarFiltros(query), empresaId);
 
-export const estadisticas = () => repo.stats();
+export const estadisticas = (empresaId = null) => repo.stats(empresaId);
 
-export const listarCategorias = () => repo.categorias();
+export const listarCategorias = (empresaId = null) => repo.categorias(empresaId);
 
 // RDF1103 + RDF1104: detalle con la venta relacionada y su historial de caja
 export async function obtener(idParam) {
@@ -98,13 +101,13 @@ export async function obtener(idParam) {
 }
 
 // RDF1101 – ingreso manual (origen "otro"), nace activo
-export async function crear(body, idUsuario) {
+export async function crear(body, idUsuario, empresaId = null) {
   const datos = validarIngreso(body);
 
   await categoriaService.obtenerCategoriaActiva(datos.id_categoria);
 
   const id = await repo.conTransaccion((client) =>
-    insertarConCaja(client, { ...datos, id_usuario: idUsuario })
+    insertarConCaja(client, { ...datos, id_usuario: idUsuario, empresa_id: empresaId })
   );
 
   return repo.findById(id);
@@ -233,7 +236,8 @@ export async function registrarAutomatico(client, d) {
     origen: d.origen,
     id_venta: d.id_venta ?? null,
     id_cobro: d.id_cobro ?? null,
-    id_usuario: d.id_usuario
+    id_usuario: d.id_usuario,
+    empresa_id: d.empresa_id ?? null
   });
 }
 

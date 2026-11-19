@@ -8,12 +8,12 @@ async function obtenerOFallar(id) {
   return categoria;
 }
 
-export function listar(query) {
-  return repo.list(normalizarFiltros(query));
+export function listar(query, empresaId = null) {
+  return repo.list(normalizarFiltros(query), empresaId);
 }
 
-export async function estadisticas() {
-  return repo.stats();
+export async function estadisticas(empresaId = null) {
+  return repo.stats(empresaId);
 }
 
 export async function obtener(idRaw) {
@@ -21,23 +21,23 @@ export async function obtener(idRaw) {
 }
 
 /** RDF0601 – nace activa */
-export async function crear(body) {
+export async function crear(body, empresaId = 1) {
   const datos = validarCategoria(body);
 
-  if (await repo.findByNombre(datos.nombre)) {
+  if (await repo.findByNombre(datos.nombre, null, empresaId)) {
     throw new AppError(`Ya existe una categoría llamada "${datos.nombre}".`, 409);
   }
 
-  return repo.insert(datos);
+  return repo.insert(datos, empresaId);
 }
 
 /** RDF0602 / RN-20 – el id nunca se modifica */
-export async function actualizar(idRaw, body) {
+export async function actualizar(idRaw, body, empresaId = null) {
   const id = parseId(idRaw);
   const anterior = await obtenerOFallar(id);
   const datos = validarCategoria(body);
 
-  if (await repo.findByNombre(datos.nombre, id)) {
+  if (await repo.findByNombre(datos.nombre, id, empresaId || anterior.empresa_id)) {
     throw new AppError(`Ya existe otra categoría llamada "${datos.nombre}".`, 409);
   }
 

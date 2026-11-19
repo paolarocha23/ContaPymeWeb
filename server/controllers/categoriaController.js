@@ -12,11 +12,11 @@ const auditar = (req, accion, detalle) =>
   });
 
 export const getCategorias = asyncHandler(async (req, res) => {
-  res.json({ success: true, data: await categoriaService.listar(req.query) });
+  res.json({ success: true, data: await categoriaService.listar(req.query, req.user.empresa_id) });
 });
 
 export const getStats = asyncHandler(async (req, res) => {
-  res.json({ success: true, data: await categoriaService.estadisticas() });
+  res.json({ success: true, data: await categoriaService.estadisticas(req.user.empresa_id) });
 });
 
 export const getCategoriaById = asyncHandler(async (req, res) => {
@@ -24,7 +24,7 @@ export const getCategoriaById = asyncHandler(async (req, res) => {
 });
 
 export const createCategoria = asyncHandler(async (req, res) => {
-  const categoria = await categoriaService.crear(req.body);
+  const categoria = await categoriaService.crear(req.body, req.user.empresa_id);
   await auditar(req, 'CREACION_CATEGORIA',
     `Se registró la categoría "${categoria.nombre}" (ID: ${categoria.id_categoria})`);
   res.status(201).json({
@@ -35,7 +35,7 @@ export const createCategoria = asyncHandler(async (req, res) => {
 });
 
 export const updateCategoria = asyncHandler(async (req, res) => {
-  const { anterior, actual } = await categoriaService.actualizar(req.params.id, req.body);
+  const { anterior, actual } = await categoriaService.actualizar(req.params.id, req.body, req.user.empresa_id);
   await auditar(req, 'MODIFICACION_CATEGORIA',
     `Se modificó la categoría "${anterior.nombre}" → "${actual.nombre}" (ID: ${actual.id_categoria})`);
   res.json({ success: true, message: 'Categoría actualizada correctamente.', data: actual });

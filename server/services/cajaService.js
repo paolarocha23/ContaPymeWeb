@@ -62,9 +62,9 @@ function validarMovimiento(datos) {
 }
 
 // Consultar movimientos
-export async function listarMovimientosCaja(filtros = {}) {
+export async function listarMovimientosCaja(filtros = {}, empresaId = null) {
   validarFiltros(filtros);
-  return await obtenerMovimientosCaja(filtros);
+  return await obtenerMovimientosCaja(filtros, empresaId);
 }
 
 // Consultar un movimiento
@@ -83,7 +83,7 @@ export async function consultarMovimientoCaja(id) {
 }
 
 // Registrar entrada o salida manual
-export async function crearMovimientoCaja(datos, id_usuario) {
+export async function crearMovimientoCaja(datos, id_usuario, empresaId = null) {
   validarMovimiento(datos);
 
   if (!id_usuario) {
@@ -94,12 +94,13 @@ export async function crearMovimientoCaja(datos, id_usuario) {
     ...datos,
     concepto: datos.concepto.trim(),
     monto: Number(datos.monto),
-    id_usuario
+    id_usuario,
+    empresa_id: empresaId
   });
 }
 
 // Consultar resumen
-export async function consultarResumenCaja(filtros = {}) {
+export async function consultarResumenCaja(filtros = {}, empresaId = null) {
   validarFiltros(filtros);
-  return await obtenerResumenCaja(filtros);
+  return await obtenerResumenCaja(filtros, empresaId);
 }

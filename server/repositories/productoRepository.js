@@ -16,7 +16,7 @@ const COLUMNAS = `
   p.estatus
 `;
 
-export async function list({ q, estatus, id_categoria, tipo } = {}) {
+export async function list({ q, estatus, id_categoria, tipo } = {}, empresaId = null) {
   const params = [];
   const add = (v) => {
     params.push(v);
@@ -24,6 +24,10 @@ export async function list({ q, estatus, id_categoria, tipo } = {}) {
   };
 
   let where = 'WHERE 1=1';
+
+  if (empresaId) {
+    where += ` AND p.empresa_id = ${add(empresaId)} AND c.empresa_id = p.empresa_id`;
+  }
 
   if (q) {
     const p = add(`%${q}%`);
@@ -65,26 +69,27 @@ export async function findById(id) {
   return rows[0] || null;
 }
 
-export async function findByCodigo(codigo, excluirId = null) {
+export async function findByCodigo(codigo, excluirId = null, empresaId = null) {
   const { rows } = await pool.query(`
     SELECT id_producto
     FROM productos
     WHERE LOWER(codigo) = LOWER($1)
       AND ($2::int IS NULL OR id_producto <> $2)
+      AND ($3::int IS NULL OR empresa_id = $3)
     LIMIT 1
-  `, [codigo, excluirId]);
+  `, [codigo, excluirId, empresaId]);
 
   return rows[0] || null;
 }
 
-export async function insert(d) {
+export async function insert(d, empresaId = 1) {
   const { rows } = await pool.query(`
     INSERT INTO productos (
       codigo, nombre, descripcion, tipo, id_categoria,
       unidad_medida, precio_compra, precio_venta,
-      stock, stock_minimo, estatus
+      stock, stock_minimo, estatus, empresa_id
     )
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,1)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,1,$11)
     RETURNING id_producto
   `, [
     d.codigo,
@@ -96,7 +101,8 @@ export async function insert(d) {
     d.precio_compra,
     d.precio_venta,
     d.stock,
-    d.stock_minimo
+    d.stock_minimo,
+    empresaId
   ]);
 
   return findById(rows[0].id_producto);
@@ -194,7 +200,7 @@ export async function remove(id) {
   );
 }
 
-export async function stats() {
+export async function stats(empresaId = null) {
   const { rows } = await pool.query(`
     SELECT
       COUNT(*)::int AS total,
@@ -208,7 +214,8 @@ export async function stats() {
           AND stock <= stock_minimo
       )::int AS stock_bajo
     FROM productos
-  `);
+    WHERE ($1::int IS NULL OR empresa_id = $1)
+  `, [empresaId]);
 
   return rows[0];
 }
@@ -266,13 +273,14 @@ export async function ventasDeProducto(id, limite = 20) {
   return rows;
 }
 
-export async function categoriasActivas() {
+export async function categoriasActivas(empresaId = null) {
   const { rows } = await pool.query(`
     SELECT id_categoria, nombre
     FROM categorias
     WHERE estatus = 1
+      AND ($1::int IS NULL OR empresa_id = $1)
     ORDER BY nombre ASC
-  `);
+  `, [empresaId]);
 
   return rows;
 }

@@ -1,8 +1,13 @@
 import pool from '../config/db.js';
 
-export const obtenerCuentas = async ({ estatus, busqueda } = {}) => {
+export const obtenerCuentas = async ({ estatus, busqueda } = {}, empresaId = null) => {
     const condiciones = [];
     const valores = [];
+
+    if (empresaId) {
+        valores.push(empresaId);
+        condiciones.push(`cp.empresa_id = $${valores.length}`);
+    }
 
     if (estatus) {
         const estado = String(estatus).trim().toLowerCase();
@@ -107,7 +112,7 @@ export const obtenerPagos = async (idCxp) => {
     return rows;
 };
 
-export const obtenerResumen = async () => {
+export const obtenerResumen = async (empresaId = null) => {
     const query = `
         SELECT
             COUNT(*) AS total_cuentas,
@@ -129,10 +134,11 @@ export const obtenerResumen = async () => {
                     AND fecha_vencimiento < CURRENT_DATE
                 ), 0
             ) AS saldo_vencido
-        FROM cuentas_por_pagar;
+        FROM cuentas_por_pagar
+        WHERE ($1::int IS NULL OR empresa_id = $1);
     `;
 
-    const { rows } = await pool.query(query);
+    const { rows } = await pool.query(query, [empresaId]);
     return rows[0];
 };
 
@@ -164,7 +170,8 @@ export const registrarPagoCxp = async (datos, client) => {
         monto,
         forma_pago,
         id_usuario,
-        observaciones
+        observaciones,
+        empresa_id
     } = datos;
 
     const query = `
@@ -174,7 +181,8 @@ export const registrarPagoCxp = async (datos, client) => {
             monto,
             forma_pago,
             id_usuario,
-            observaciones
+            observaciones,
+            empresa_id
         )
         VALUES (
             $1,
@@ -182,7 +190,8 @@ export const registrarPagoCxp = async (datos, client) => {
             $3,
             $4,
             $5,
-            $6
+            $6,
+            $7
         )
         RETURNING *;
     `;
@@ -193,7 +202,8 @@ export const registrarPagoCxp = async (datos, client) => {
         monto,
         forma_pago,
         id_usuario,
-        observaciones || null
+        observaciones || null,
+        empresa_id ?? 1
     ]);
 
     return rows[0];

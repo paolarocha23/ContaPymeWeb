@@ -12,7 +12,7 @@ export const obtenerCuentas = async (req, res) => {
     const cuentas = await consultarCuentas({
         estatus,
         busqueda
-    });
+    }, req.user.empresa_id);
 
     res.status(200).json({
         success: true,
@@ -46,7 +46,7 @@ export const obtenerPagos = async (req, res) => {
 };
 
 export const obtenerResumen = async (req, res) => {
-    const resumen = await consultarResumen();
+    const resumen = await consultarResumen(req.user.empresa_id);
 
     res.status(200).json({
         success: true,
@@ -63,7 +63,8 @@ export const registrarPago = async (req, res) => {
     const resultado = await registrarNuevoPago(
         id,
         req.body,
-        idUsuario
+        idUsuario,
+        req.user.empresa_id
     );
 
     res.status(201).json({

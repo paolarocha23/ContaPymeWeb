@@ -2,9 +2,15 @@ import pool from '../config/db.js';
 
 // Construye filtros de fecha con parámetros seguros.
 // Se utiliza el límite superior exclusivo para incluir todo el día final.
-const filtroFechas = (campo, fechaInicio, fechaFin) => {
+const filtroFechas = (campo, fechaInicio, fechaFin, empresaId = null, alias = '') => {
   const condiciones = [];
   const valores = [];
+
+  if (empresaId) {
+    valores.push(empresaId);
+    const prefix = alias ? `${alias}.` : '';
+    condiciones.push(`${prefix}empresa_id = $${valores.length}`);
+  }
 
   if (fechaInicio) {
     valores.push(fechaInicio);
@@ -27,11 +33,12 @@ const filtroFechas = (campo, fechaInicio, fechaFin) => {
 };
 
 // RESUMEN DE VENTAS
-export const obtenerReporteVentas = async (filtros = {}) => {
+export const obtenerReporteVentas = async (filtros = {}, empresaId = null) => {
   const { where, valores } = filtroFechas(
     'fecha',
     filtros.fecha_inicio,
-    filtros.fecha_fin
+    filtros.fecha_fin,
+    empresaId
   );
 
   const { rows } = await pool.query(`
@@ -56,11 +63,12 @@ export const obtenerReporteVentas = async (filtros = {}) => {
 };
 
 // RESUMEN DE COMPRAS
-export const obtenerReporteCompras = async (filtros = {}) => {
+export const obtenerReporteCompras = async (filtros = {}, empresaId = null) => {
   const { where, valores } = filtroFechas(
     'fecha',
     filtros.fecha_inicio,
-    filtros.fecha_fin
+    filtros.fecha_fin,
+    empresaId
   );
 
   const { rows } = await pool.query(`
@@ -78,11 +86,12 @@ export const obtenerReporteCompras = async (filtros = {}) => {
 };
 
 // RESUMEN DE INGRESOS
-export const obtenerReporteIngresos = async (filtros = {}) => {
+export const obtenerReporteIngresos = async (filtros = {}, empresaId = null) => {
   const { where, valores } = filtroFechas(
     'fecha',
     filtros.fecha_inicio,
-    filtros.fecha_fin
+    filtros.fecha_fin,
+    empresaId
   );
 
   const condicion = where
@@ -101,11 +110,12 @@ export const obtenerReporteIngresos = async (filtros = {}) => {
 };
 
 // RESUMEN DE GASTOS
-export const obtenerReporteGastos = async (filtros = {}) => {
+export const obtenerReporteGastos = async (filtros = {}, empresaId = null) => {
   const { where, valores } = filtroFechas(
     'fecha',
     filtros.fecha_inicio,
-    filtros.fecha_fin
+    filtros.fecha_fin,
+    empresaId
   );
 
   const condicion = where
@@ -124,7 +134,7 @@ export const obtenerReporteGastos = async (filtros = {}) => {
 };
 
 // CUENTAS POR COBRAR: SALDOS ACTUALES
-export const obtenerReporteCuentasPorCobrar = async () => {
+export const obtenerReporteCuentasPorCobrar = async (empresaId = null) => {
   const { rows } = await pool.query(`
     SELECT
       COUNT(*)::int AS total_cuentas,
@@ -145,13 +155,14 @@ export const obtenerReporteCuentasPorCobrar = async () => {
           THEN saldo_pendiente ELSE 0 END
       ), 0) AS saldo_vencido
     FROM cuentas_por_cobrar
-  `);
+    WHERE ($1::int IS NULL OR empresa_id = $1)
+  `, [empresaId]);
 
   return rows[0];
 };
 
 // CUENTAS POR PAGAR: SALDOS ACTUALES
-export const obtenerReporteCuentasPorPagar = async () => {
+export const obtenerReporteCuentasPorPagar = async (empresaId = null) => {
   const { rows } = await pool.query(`
     SELECT
       COUNT(*)::int AS total_cuentas,
@@ -172,13 +183,14 @@ export const obtenerReporteCuentasPorPagar = async () => {
           THEN saldo_pendiente ELSE 0 END
       ), 0) AS saldo_vencido
     FROM cuentas_por_pagar
-  `);
+    WHERE ($1::int IS NULL OR empresa_id = $1)
+  `, [empresaId]);
 
   return rows[0];
 };
 
 // INVENTARIO: EXISTENCIAS ACTUALES
-export const obtenerReporteInventario = async () => {
+export const obtenerReporteInventario = async (empresaId = null) => {
   const { rows } = await pool.query(`
     SELECT
       COUNT(*) FILTER (
@@ -198,17 +210,20 @@ export const obtenerReporteInventario = async () => {
         END
       ), 0) AS valor_inventario
     FROM productos
-  `);
+    WHERE ($1::int IS NULL OR empresa_id = $1)
+  `, [empresaId]);
 
   return rows[0];
 };
 
 // DETALLE DE VENTAS
-export const obtenerDetalleVentas = async (filtros = {}) => {
+export const obtenerDetalleVentas = async (filtros = {}, empresaId = null) => {
   const { where, valores } = filtroFechas(
     'v.fecha',
     filtros.fecha_inicio,
-    filtros.fecha_fin
+    filtros.fecha_fin,
+    empresaId,
+    'v'
   );
 
   const { rows } = await pool.query(
@@ -247,11 +262,13 @@ export const obtenerDetalleVentas = async (filtros = {}) => {
 };
 
 // DETALLE DE COMPRAS
-export const obtenerDetalleCompras = async (filtros = {}) => {
+export const obtenerDetalleCompras = async (filtros = {}, empresaId = null) => {
   const { where, valores } = filtroFechas(
     'c.fecha',
     filtros.fecha_inicio,
-    filtros.fecha_fin
+    filtros.fecha_fin,
+    empresaId,
+    'c'
   );
 
   const { rows } = await pool.query(
@@ -291,11 +308,13 @@ export const obtenerDetalleCompras = async (filtros = {}) => {
   return rows;
 };
 
-export const obtenerDetalleIngresos = async (filtros = {}) => {
+export const obtenerDetalleIngresos = async (filtros = {}, empresaId = null) => {
   const { where, valores } = filtroFechas(
     'i.fecha',
     filtros.fecha_inicio,
-    filtros.fecha_fin
+    filtros.fecha_fin,
+    empresaId,
+    'i'
   );
 
   const { rows } = await pool.query(
@@ -325,11 +344,13 @@ export const obtenerDetalleIngresos = async (filtros = {}) => {
   return rows;
 };
 
-export const obtenerDetalleGastos = async (filtros = {}) => {
+export const obtenerDetalleGastos = async (filtros = {}, empresaId = null) => {
   const { where, valores } = filtroFechas(
     'g.fecha',
     filtros.fecha_inicio,
-    filtros.fecha_fin
+    filtros.fecha_fin,
+    empresaId,
+    'g'
   );
 
   const { rows } = await pool.query(
@@ -358,7 +379,7 @@ export const obtenerDetalleGastos = async (filtros = {}) => {
 };
 
 // DETALLE DE INVENTARIO: EXISTENCIAS ACTUALES
-export const obtenerDetalleInventario = async () => {
+export const obtenerDetalleInventario = async (empresaId = null) => {
   const { rows } = await pool.query(`
         SELECT
             p.id_producto,
@@ -377,19 +398,20 @@ export const obtenerDetalleInventario = async () => {
         FROM productos p
         WHERE p.tipo = 'producto'
           AND p.estatus = 1
+          AND ($1::int IS NULL OR p.empresa_id = $1)
         ORDER BY
             CASE
                 WHEN p.stock <= p.stock_minimo THEN 0
                 ELSE 1
             END,
             p.nombre ASC
-    `);
+    `, [empresaId]);
 
   return rows;
 };
 
 // DETALLE DE CUENTAS POR COBRAR: SALDOS ACTUALES
-export const obtenerDetalleCuentasPorCobrar = async () => {
+export const obtenerDetalleCuentasPorCobrar = async (empresaId = null) => {
   const { rows } = await pool.query(`
         SELECT
             cxc.id_cxc,
@@ -423,6 +445,7 @@ export const obtenerDetalleCuentasPorCobrar = async () => {
             ON cl.id_cliente = cxc.id_cliente
         LEFT JOIN ventas v
             ON v.id_venta = cxc.id_venta
+        WHERE ($1::int IS NULL OR cxc.empresa_id = $1)
         ORDER BY
             CASE
                 WHEN cxc.saldo_pendiente > 0
@@ -434,13 +457,13 @@ export const obtenerDetalleCuentasPorCobrar = async () => {
             END,
             cxc.fecha_vencimiento ASC NULLS LAST,
             cxc.id_cxc DESC
-    `);
+    `, [empresaId]);
 
   return rows;
 };
 
 // DETALLE DE CUENTAS POR PAGAR: SALDOS ACTUALES
-export const obtenerDetalleCuentasPorPagar = async () => {
+export const obtenerDetalleCuentasPorPagar = async (empresaId = null) => {
   const { rows } = await pool.query(`
         SELECT
             cxp.id_cxp,
@@ -468,6 +491,7 @@ export const obtenerDetalleCuentasPorPagar = async () => {
             ON p.id_proveedor = cxp.id_proveedor
         LEFT JOIN compras c
             ON c.id_compra = cxp.id_compra
+        WHERE ($1::int IS NULL OR cxp.empresa_id = $1)
         ORDER BY
             CASE
                 WHEN cxp.saldo_pendiente > 0
@@ -479,7 +503,7 @@ export const obtenerDetalleCuentasPorPagar = async () => {
             END,
             cxp.fecha_vencimiento ASC NULLS LAST,
             cxp.id_cxp DESC
-    `);
+    `, [empresaId]);
 
   return rows;
 };

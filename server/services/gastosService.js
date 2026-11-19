@@ -49,8 +49,8 @@ function validarGasto(datos) {
   }
 }
 
-export async function listarGastos(filtros) {
-  return await obtenerGastos(filtros);
+export async function listarGastos(filtros, empresaId = null) {
+  return await obtenerGastos(filtros, empresaId);
 }
 
 export async function consultarGasto(id) {
@@ -63,11 +63,11 @@ export async function consultarGasto(id) {
   return gasto;
 }
 
-export async function listarCategoriasGastos() {
-  return await obtenerCategoriasGastos();
+export async function listarCategoriasGastos(empresaId = null) {
+  return await obtenerCategoriasGastos(empresaId);
 }
 
-export async function crearGasto(datos, id_usuario) {
+export async function crearGasto(datos, id_usuario, empresaId = null) {
   validarGasto(datos);
 
   const client = await pool.connect();
@@ -78,7 +78,8 @@ export async function crearGasto(datos, id_usuario) {
     const gasto = await registrarGasto({
       ...datos,
       concepto: datos.concepto.trim(),
-      id_usuario
+      id_usuario,
+      empresa_id: empresaId
     }, client);
 
     // Solo los gastos en efectivo afectan Caja
@@ -90,7 +91,8 @@ export async function crearGasto(datos, id_usuario) {
         monto: gasto.monto,
         origen: 'gasto',
         id_referencia: gasto.id_gasto,
-        id_usuario
+        id_usuario,
+        empresa_id: empresaId
       }, client);
     }
 
@@ -213,6 +215,6 @@ export async function darDeBajaGasto(id) {
   }
 }
 
-export async function consultarResumenGastos() {
-  return await obtenerResumenGastos();
+export async function consultarResumenGastos(empresaId = null) {
+  return await obtenerResumenGastos(empresaId);
 }
