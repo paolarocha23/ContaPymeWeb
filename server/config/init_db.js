@@ -167,7 +167,7 @@ async function asegurarColumnasAuxiliares() {
       );
     } catch (err) {
       console.warn(
-        `   ⚠️ No se pudo verificar ${tabla}.${columna}: ${err.message}`
+        `   No se pudo verificar ${tabla}.${columna}: ${err.message}`
       );
     }
   }
@@ -195,7 +195,7 @@ async function asegurarIdentidad(tabla, columna) {
     console.log(`   ↳ Identidad agregada a ${tabla}.${columna}`);
   } catch (err) {
     console.warn(
-      `   ⚠️ No se pudo agregar identidad a ${tabla}.${columna}: ${err.message}`
+      `   No se pudo agregar identidad a ${tabla}.${columna}: ${err.message}`
     );
   }
 }

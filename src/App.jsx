@@ -357,14 +357,8 @@ export default function App() {
             {isGastos && <GastosView />}
             {isReportes && <ReportesView />}
             {isCuentasPorCobrar && <CuentasPorCobrarView />}
-
-            {activeView === 'categorias' && <CategoriasView />}
-            {activeView === 'productos' && <ProductosView />}
-            
             {activeView === 'inventario' && <InventarioView />}
             {activeView === 'ingresos' && <IngresosView />}
-            
-            {isInventario && <InventarioView />}
             {activeView === 'caja' && <CajaView />}
 
             {!hasOwnView && (

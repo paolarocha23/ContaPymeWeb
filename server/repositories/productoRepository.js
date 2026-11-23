@@ -57,14 +57,16 @@ export async function list({ q, estatus, id_categoria, tipo } = {}, empresaId = 
   return rows;
 }
 
-export async function findById(id) {
+// Solo encuentra el producto si es de la empresa indicada
+export async function findById(id, empresaId) {
   const { rows } = await pool.query(`
     SELECT ${COLUMNAS}
     FROM productos p
     INNER JOIN categorias c ON c.id_categoria = p.id_categoria
     WHERE p.id_producto = $1
+      AND p.empresa_id = $2
     LIMIT 1
-  `, [id]);
+  `, [id, empresaId]);
 
   return rows[0] || null;
 }
@@ -82,7 +84,16 @@ export async function findByCodigo(codigo, excluirId = null, empresaId = null) {
   return rows[0] || null;
 }
 
-export async function insert(d, empresaId = 1) {
+// La categoría elegida debe ser de la misma empresa
+export async function categoriaEsDeEmpresa(idCategoria, empresaId) {
+  const { rows } = await pool.query(
+    'SELECT 1 FROM categorias WHERE id_categoria = $1 AND empresa_id = $2 LIMIT 1',
+    [idCategoria, empresaId]
+  );
+  return rows.length > 0;
+}
+
+export async function insert(d, empresaId) {
   const { rows } = await pool.query(`
     INSERT INTO productos (
       codigo, nombre, descripcion, tipo, id_categoria,
@@ -100,15 +111,15 @@ export async function insert(d, empresaId = 1) {
     d.unidad_medida,
     d.precio_compra,
     d.precio_venta,
-    d.stock,
-    d.stock_minimo,
+    d.stock ?? 0,          // los servicios no llevan existencias
+    d.stock_minimo ?? 0,
     empresaId
   ]);
 
-  return findById(rows[0].id_producto);
+  return findById(rows[0].id_producto, empresaId);
 }
 
-export async function update(id, d) {
+export async function update(id, d, empresaId) {
   await pool.query(`
     UPDATE productos
     SET codigo = $1,
@@ -122,6 +133,7 @@ export async function update(id, d) {
         stock = $9,
         stock_minimo = $10
     WHERE id_producto = $11
+      AND empresa_id = $12
   `, [
     d.codigo,
     d.nombre,
@@ -131,21 +143,22 @@ export async function update(id, d) {
     d.unidad_medida,
     d.precio_compra,
     d.precio_venta,
-    d.stock,
-    d.stock_minimo,
-    id
+    d.stock ?? 0,
+    d.stock_minimo ?? 0,
+    id,
+    empresaId
   ]);
 
-  return findById(id);
+  return findById(id, empresaId);
 }
 
-export async function updateStatus(id, estatus) {
+export async function updateStatus(id, estatus, empresaId) {
   await pool.query(
-    'UPDATE productos SET estatus = $1 WHERE id_producto = $2',
-    [estatus, id]
+    'UPDATE productos SET estatus = $1 WHERE id_producto = $2 AND empresa_id = $3',
+    [estatus, id, empresaId]
   );
 
-  return findById(id);
+  return findById(id, empresaId);
 }
 
 /**
@@ -193,10 +206,10 @@ export async function tieneOperaciones(id) {
   return false;
 }
 
-export async function remove(id) {
+export async function remove(id, empresaId) {
   await pool.query(
-    'DELETE FROM productos WHERE id_producto = $1',
-    [id]
+    'DELETE FROM productos WHERE id_producto = $1 AND empresa_id = $2',
+    [id, empresaId]
   );
 }
 

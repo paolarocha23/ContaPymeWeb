@@ -7,7 +7,8 @@ const auditar = (req, accion, detalle) =>
     id_usuario: req.user.id_usuario,
     nombre_usuario: req.user.nombre_usuario,
     accion,
-    detalle
+    detalle,
+    empresa_id: req.user.empresa_id
   });
 
 export const getProductos = asyncHandler(async (req, res) => {
@@ -23,11 +24,11 @@ export const getCategorias = asyncHandler(async (req, res) => {
 });
 
 export const getProductoById = asyncHandler(async (req, res) => {
-  res.json({ success: true, data: await productoService.obtener(req.params.id) });
+  res.json({ success: true, data: await productoService.obtener(req.params.id, req.user.empresa_id) });
 });
 
 export const getOperaciones = asyncHandler(async (req, res) => {
-  res.json({ success: true, data: await productoService.operaciones(req.params.id) });
+  res.json({ success: true, data: await productoService.operaciones(req.params.id, req.user.empresa_id) });
 });
 
 export const createProducto = asyncHandler(async (req, res) => {
@@ -63,7 +64,7 @@ export const updateProducto = asyncHandler(async (req, res) => {
 });
 
 export const toggleProductoStatus = asyncHandler(async (req, res) => {
-  const { producto, cambio } = await productoService.cambiarEstatus(req.params.id, req.body);
+  const { producto, cambio } = await productoService.cambiarEstatus(req.params.id, req.body, req.user.empresa_id);
 
   const activo = Number(producto.estatus) === 1;
 
@@ -87,7 +88,7 @@ export const toggleProductoStatus = asyncHandler(async (req, res) => {
 });
 
 export const deleteProducto = asyncHandler(async (req, res) => {
-  const producto = await productoService.eliminar(req.params.id);
+  const producto = await productoService.eliminar(req.params.id, req.user.empresa_id);
 
   await auditar(
     req,
@@ -97,4 +98,3 @@ export const deleteProducto = asyncHandler(async (req, res) => {
 
   res.json({ success: true, message: 'Producto o servicio eliminado correctamente.' });
 });
-
