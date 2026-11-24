@@ -21,6 +21,7 @@ export default defineConfig({
     },
 
     workbox: {
+      maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       globPatterns: ['**/*.{js,css,html,svg,png,ico}'],
       cleanupOutdatedCaches: true,
       clientsClaim: true,
@@ -37,7 +38,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:5001',
+        target: 'http://localhost:5000',
         changeOrigin: true,
         secure: false
       }

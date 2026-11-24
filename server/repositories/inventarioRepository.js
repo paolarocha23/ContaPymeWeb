@@ -196,7 +196,11 @@ export async function listarMovimientos({
 
   return {
     total: rows[0]?.total_filas ?? 0,
-    items: rows.map(({ total_filas, ...fila }) => normalizarMovimiento(fila))
+    items: rows.map((fila) => {
+      const limpia = { ...fila };
+      delete limpia.total_filas;
+      return normalizarMovimiento(limpia);
+    })
   };
 }
 
@@ -204,13 +208,14 @@ export async function listarMovimientos({
  * Bloquea la fila del producto durante la transacción para que dos
  * movimientos simultáneos no pisen la existencia.
  */
-export async function bloquearProducto(client, id) {
+export async function bloquearProducto(client, id, empresaId = null) {
   const { rows } = await client.query(`
-    SELECT id_producto, codigo, nombre, tipo, unidad_medida, stock, stock_minimo, estatus
+    SELECT id_producto, codigo, nombre, tipo, unidad_medida, stock, stock_minimo, estatus, empresa_id
     FROM productos
     WHERE id_producto = $1
+      AND ($2::int IS NULL OR empresa_id = $2::int)
     FOR UPDATE
-  `, [id]);
+  `, [id, empresaId]);
 
   const r = rows[0];
   return r ? { ...r, stock: num(r.stock), stock_minimo: num(r.stock_minimo) } : null;

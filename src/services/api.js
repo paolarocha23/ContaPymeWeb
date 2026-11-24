@@ -775,4 +775,91 @@ export const api = {
   async getNotificaciones() {
     return this.request('/notificaciones');
   },
+
+  // Ventas
+  async getVentas(filtros = {}) {
+    const params = new URLSearchParams();
+    if (filtros.q) params.append('q', filtros.q);
+    if (filtros.estatus) params.append('estatus', filtros.estatus);
+    if (filtros.condiciones_pago) params.append('condiciones_pago', filtros.condiciones_pago);
+    if (filtros.forma_pago) params.append('forma_pago', filtros.forma_pago);
+    if (filtros.desde) params.append('desde', filtros.desde);
+    if (filtros.hasta) params.append('hasta', filtros.hasta);
+    if (filtros.id_cliente) params.append('id_cliente', filtros.id_cliente);
+    if (filtros.limite) params.append('limite', filtros.limite);
+    if (filtros.pagina) params.append('pagina', filtros.pagina);
+
+    const query = params.toString();
+    return this.request(`/ventas${query ? `?${query}` : ''}`);
+  },
+
+  async getVentasStats() {
+    return this.request('/ventas/stats');
+  },
+
+  async getVentaById(id) {
+    return this.request(`/ventas/${id}`);
+  },
+
+  async getSiguienteFolioVenta() {
+    return this.request('/ventas/siguiente-folio');
+  },
+
+  async createVenta(data) {
+    return this.request('/ventas', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  async cancelarVenta(id, motivo = '') {
+    return this.request(`/ventas/${id}/cancelar`, {
+      method: 'POST',
+      body: JSON.stringify({ motivo })
+    });
+  },
+
+  // Compras
+  async getCompras(filtros = {}) {
+    const params = new URLSearchParams();
+    if (filtros.q) params.append('q', filtros.q);
+    if (filtros.estatus && filtros.estatus !== 'todas') params.append('estatus', filtros.estatus);
+    if (filtros.condiciones_pago && filtros.condiciones_pago !== 'todas') {
+      params.append('condiciones_pago', filtros.condiciones_pago);
+    }
+    if (filtros.desde) params.append('desde', filtros.desde);
+    if (filtros.hasta) params.append('hasta', filtros.hasta);
+    if (filtros.id_proveedor) params.append('id_proveedor', filtros.id_proveedor);
+    if (filtros.limite) params.append('limite', filtros.limite);
+    if (filtros.pagina) params.append('pagina', filtros.pagina);
+
+    const query = params.toString();
+    return this.request(`/compras${query ? `?${query}` : ''}`);
+  },
+
+  async getComprasStats() {
+    return this.request('/compras/stats');
+  },
+
+  async getCompraById(id) {
+    return this.request(`/compras/${id}`);
+  },
+
+  async getSiguienteFolioCompra() {
+    return this.request('/compras/siguiente-folio');
+  },
+
+  async createCompra(data) {
+    return this.request('/compras', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  },
+
+  async cancelarCompra(id, motivo = '') {
+    return this.request(`/compras/${id}/cancelar`, {
+      method: 'POST',
+      body: JSON.stringify({ motivo })
+    });
+  },
 };
