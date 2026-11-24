@@ -818,6 +818,9 @@ export const api = {
       body: JSON.stringify({ motivo })
     });
   },
+  async crearDevolucionVenta(id, data) {
+    return this.request(`/ventas/${id}/devoluciones`, { method: 'POST', body: JSON.stringify(data) });
+  },
 
   // Compras
   async getCompras(filtros = {}) {

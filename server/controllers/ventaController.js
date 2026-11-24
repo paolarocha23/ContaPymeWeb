@@ -24,7 +24,7 @@ export const getVentaStats = asyncHandler(async (req, res) => {
 });
 
 export const getVentaById = asyncHandler(async (req, res) => {
-  const data = await ventaService.obtener(req.params.id);
+  const data = await ventaService.obtener(req.params.id, req.user.empresa_id);
   res.json({ success: true, data });
 });
 
@@ -36,28 +36,19 @@ export const getSiguienteFolio = asyncHandler(async (req, res) => {
 export const createVenta = asyncHandler(async (req, res) => {
   const venta = await ventaService.crear(req.body, req.user.id_usuario, req.user.empresa_id);
 
-  const detalleAuditoria =
-    `Se registró la venta folio "${venta.codigo}" por ${moneda(venta.total)} ` +
-    `a ${venta.condiciones_pago} (${venta.forma_pago}) ` +
-    `al cliente "${venta.nombre_cliente}". Pagado: ${moneda(venta.monto_pagado)}. ` +
-    `Saldo pendiente: ${moneda(venta.saldo_pendiente)} (ID: ${venta.id_venta})`;
+  await auditar(
+    req,
+    'CREACION_VENTA',
+    `Se registró la venta folio "${venta.codigo}" por ${moneda(venta.total)} a ${venta.condiciones_pago} ` +
+      `(${venta.forma_pago}) al cliente "${venta.nombre_cliente}". Pagado: ${moneda(venta.monto_pagado)}. ` +
+      `Saldo pendiente: ${moneda(venta.saldo_pendiente)} (ID: ${venta.id_venta})`
+  );
 
-  await auditar(req, 'CREACION_VENTA', detalleAuditoria);
-
-  res.status(201).json({
-    success: true,
-    message: 'Venta registrada exitosamente.',
-    data: venta
-  });
+  res.status(201).json({ success: true, message: 'Venta registrada exitosamente.', data: venta });
 });
 
 export const cancelarVentaController = asyncHandler(async (req, res) => {
-  const venta = await ventaService.cancelar(
-    req.params.id,
-    req.body,
-    req.user.id_usuario,
-    req.user.empresa_id
-  );
+  const venta = await ventaService.cancelar(req.params.id, req.body, req.user.id_usuario, req.user.empresa_id);
 
   await auditar(
     req,
@@ -65,9 +56,17 @@ export const cancelarVentaController = asyncHandler(async (req, res) => {
     `Se canceló la venta folio "${venta.codigo}" por ${moneda(venta.total)}. Se revirtieron inventario, ingresos y caja (ID: ${venta.id_venta})`
   );
 
-  res.json({
-    success: true,
-    message: 'Venta cancelada exitosamente.',
-    data: venta
-  });
+  res.json({ success: true, message: 'Venta cancelada exitosamente.', data: venta });
+});
+
+export const devolverVentaController = asyncHandler(async (req, res) => {
+  const venta = await ventaService.devolver(req.params.id, req.body, req.user.id_usuario, req.user.empresa_id);
+
+  await auditar(
+    req,
+    'DEVOLUCION_VENTA',
+    `Se registró una devolución de la venta folio "${venta.codigo}". Total devuelto acumulado: ${moneda(venta.total_devuelto)} (ID: ${venta.id_venta})`
+  );
+
+  res.status(201).json({ success: true, message: 'Devolución registrada exitosamente.', data: venta });
 });

@@ -5,7 +5,8 @@ import {
   getVentaById,
   getSiguienteFolio,
   createVenta,
-  cancelarVentaController
+  cancelarVentaController,
+  devolverVentaController
 } from '../controllers/ventaController.js';
 import { verifyToken, requirePermission } from '../middleware/auth.js';
 
@@ -21,5 +22,6 @@ router.get('/:id', getVentaById);
 router.post('/', createVenta);
 router.post('/:id/cancelar', cancelarVentaController);
 router.patch('/:id/cancelar', cancelarVentaController);
+router.post('/:id/devoluciones', devolverVentaController);
 
 export default router;

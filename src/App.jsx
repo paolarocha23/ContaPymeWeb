@@ -193,8 +193,7 @@ export default function App() {
     gastos: 'Gastos',
     caja: 'Caja / Efectivo',
     cxc: 'Cuentas por cobrar',
-    ingresos: 'Finanzas',
-
+    ingresos: 'Finanzas'
   };
 
   // Subtítulos de las pantallas
@@ -211,7 +210,7 @@ export default function App() {
     ingresos: 'Registro y consulta de ingresos',
     reports: 'Indicadores financieros y operativos del negocio',
     cxc: 'Control de cobros y saldos pendientes de clientes',
-    ventas: 'Registro, consulta y control de ventas comerciales',
+    ventas: 'Registro y seguimiento de ventas',
     compras: 'Registro y abastecimiento de compras comerciales'
   };
 

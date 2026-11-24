@@ -3,83 +3,74 @@ import * as inventarioRepo from '../repositories/inventarioRepository.js';
 import * as ingresoService from './ingresoService.js';
 import { AppError } from '../utils/http.js';
 import {
+  ESTATUS,
   parseId,
+  redondear,
+  calcularEstatus,
   validarFiltros,
-  validarVenta
+  validarVenta,
+  validarDevolucion
 } from '../validators/ventaValidator.js';
 
-export const listar = async (query, empresaId = null) => {
-  const filtros = validarFiltros(query);
-  return repo.list(filtros, empresaId);
-};
+export const listar = async (query, empresaId = null) => repo.list(validarFiltros(query), empresaId);
 
-export const estadisticas = async (empresaId = null) => {
-  return repo.stats(empresaId);
-};
+export const estadisticas = async (empresaId = null) => repo.stats(empresaId);
 
-export const obtener = async (idParam) => {
+export const obtener = async (idParam, empresaId = null) => {
   const id = parseId(idParam);
-  const venta = await repo.findById(id);
+  const venta = await repo.findById(id, empresaId);
+  if (!venta) throw new AppError('La venta solicitada no existe.', 404);
 
-  if (!venta) {
-    throw new AppError('La venta solicitada no existe.', 404);
-  }
-
-  const items = await repo.findItemsByVentaId(id);
-
-  return {
-    ...venta,
-    items
-  };
+  const [items, devoluciones] = await Promise.all([
+    repo.findItemsByVentaId(id),
+    repo.listarDevoluciones(id)
+  ]);
+  return { ...venta, items, devoluciones };
 };
 
-export const siguienteFolio = async (empresaId = null) => {
-  return repo.conTransaccion(async (client) => {
-    const folio = await repo.generarSiguienteFolio(client, empresaId || 1);
-    return { folio };
-  });
-};
+export const siguienteFolio = async (empresaId = null) =>
+  repo.conTransaccion(async (client) => ({ folio: await repo.generarSiguienteFolio(client, empresaId || 1) }));
 
 /**
- * Registra una venta completa con todos sus impactos transaccionales:
- * 1. Control de inventario (descuenta stock y genera movimiento).
- * 2. Guarda venta y detalles.
- * 3. Si es a crédito o tiene saldo pendiente, genera Cuenta por Cobrar.
- * 4. Si hay monto pagado, genera Ingreso y afecta Caja si fue en efectivo.
+ * Registra una venta (RDF0901/0904/0905/0906):
+ * valida productos con precio de catálogo, descuenta inventario, guarda venta y detalle,
+ * genera CxC si queda saldo e ingreso/caja por lo cobrado.
+ * El ticket NO se guarda en BD: el front lo arma con la respuesta y lo guarda en caché.
  */
 export async function crear(body, idUsuario, empresaId = null) {
   const datos = validarVenta(body);
+  const empresa = empresaId || 1;
 
   const resultado = await repo.conTransaccion(async (client) => {
-    // 1. Validar productos, aplicar precio oficial registrado y descontar stock
     const itemsProcesados = [];
-    let subtotalOficial = 0;
+    let subtotal = 0;
 
     for (const item of datos.items) {
       const producto = await inventarioRepo.bloquearProducto(client, item.id_producto);
-
-      if (!producto) {
-        throw new AppError(`El producto con ID ${item.id_producto} no existe.`, 404);
-      }
-
+      if (!producto) throw new AppError(`El producto con ID ${item.id_producto} no existe.`, 404);
       if (Number(producto.estatus) !== 1) {
         throw new AppError(`El producto "${producto.nombre}" está inactivo y no se puede vender.`, 409);
       }
 
-      // El precio SIEMPRE debe ser el registrado oficialmente en el catálogo del producto
-      const precioOficial = Math.round(Number(producto.precio_venta || 0) * 100) / 100;
-      const subtotalItem = Math.round(item.cantidad * precioOficial * 100) / 100;
-      subtotalOficial += subtotalItem;
+      // El precio se lee directo del catálogo (no depende de lo que devuelva bloquearProducto)
+      const precioCatalogo = await repo.obtenerPrecioVenta(client, item.id_producto);
+      if (precioCatalogo === null || precioCatalogo <= 0) {
+        throw new AppError(`El producto "${producto.nombre}" no tiene un precio de venta válido en el catálogo.`, 409);
+      }
+      const precio = redondear(precioCatalogo);
+      const subtotalItem = redondear(item.cantidad * precio);
+      subtotal += subtotalItem;
 
-      const itemConPrecioOficial = {
-        ...item,
-        precio_unitario: precioOficial,
-        subtotal: subtotalItem
+      const esFisico = String(producto.tipo).toLowerCase() === 'producto';
+      const procesado = {
+        id_producto: item.id_producto,
+        cantidad: item.cantidad,
+        precio_unitario: precio,
+        subtotal: subtotalItem,
+        esFisico
       };
 
-      const esProductoFisico = String(producto.tipo).toLowerCase() === 'producto';
-
-      if (esProductoFisico) {
+      if (esFisico) {
         const stockActual = Number(producto.stock ?? 0);
         if (item.cantidad > stockActual) {
           throw new AppError(
@@ -88,42 +79,28 @@ export async function crear(body, idUsuario, empresaId = null) {
             { code: 'STOCK_INSUFICIENTE', id_producto: producto.id_producto, disponible: stockActual }
           );
         }
-
-        const nuevoStock = stockActual - item.cantidad;
-        await inventarioRepo.actualizarStock(client, producto.id_producto, nuevoStock);
-
-        itemsProcesados.push({
-          ...itemConPrecioOficial,
-          nombre_producto: producto.nombre,
-          esProductoFisico,
-          stockAnterior: stockActual,
-          stockNuevo: nuevoStock
-        });
-      } else {
-        itemsProcesados.push({
-          ...itemConPrecioOficial,
-          nombre_producto: producto.nombre,
-          esProductoFisico: false
-        });
+        procesado.stockAnterior = stockActual;
+        procesado.stockNuevo = redondear(stockActual - item.cantidad);
+        await inventarioRepo.actualizarStock(client, producto.id_producto, procesado.stockNuevo);
       }
+      itemsProcesados.push(procesado);
     }
 
-    const totalOficial = Math.round(subtotalOficial * 100) / 100;
-    const montoPagadoFinal = datos.condiciones_pago === 'contado'
-      ? totalOficial
-      : Math.min(totalOficial, Math.max(0, Number(datos.monto_pagado || 0)));
-
-    let estatusFinal = 'pendiente';
-    if (montoPagadoFinal >= totalOficial) {
-      estatusFinal = 'pagada';
-    } else if (montoPagadoFinal > 0) {
-      estatusFinal = 'parcial';
+    const total = redondear(subtotal);
+    if (total <= 0 || total > datos.MAX_MONTO) {
+      throw new AppError('El total de la venta debe ser mayor a cero y no exceder el límite permitido.', 400);
     }
 
-    // 2. Generar folio seguro
-    const codigo = await repo.generarSiguienteFolio(client, empresaId || 1);
+    const montoPagado = datos.condiciones_pago === 'contado' ? total : Math.min(total, datos.monto_pagado);
+    const saldo = redondear(total - montoPagado);
 
-    // 3. Insertar venta
+    if (saldo > 0 && !datos.id_cliente) {
+      throw new AppError('Las ventas con saldo pendiente requieren un cliente registrado.', 400);
+    }
+
+    const estatus = calcularEstatus(total, montoPagado);
+    const codigo = await repo.generarSiguienteFolio(client, empresa);
+
     const venta = await repo.insertVenta(client, {
       codigo,
       id_cliente: datos.id_cliente,
@@ -131,15 +108,14 @@ export async function crear(body, idUsuario, empresaId = null) {
       forma_pago: datos.forma_pago,
       condiciones_pago: datos.condiciones_pago,
       fecha_vencimiento: datos.fecha_vencimiento,
-      subtotal: totalOficial,
-      total: totalOficial,
-      monto_pagado: montoPagadoFinal,
-      estatus: estatusFinal,
+      subtotal: total,
+      total,
+      monto_pagado: montoPagado,
+      estatus,
       observaciones: datos.observaciones,
-      empresa_id: empresaId || 1
+      empresa_id: empresa
     });
 
-    // 4. Insertar detalle de venta y registrar movimientos de inventario
     for (const item of itemsProcesados) {
       await repo.insertDetalle(client, {
         id_venta: venta.id_venta,
@@ -147,10 +123,10 @@ export async function crear(body, idUsuario, empresaId = null) {
         cantidad: item.cantidad,
         precio_unitario: item.precio_unitario,
         subtotal: item.subtotal,
-        empresa_id: empresaId || 1
+        empresa_id: empresa
       });
 
-      if (item.esProductoFisico) {
+      if (item.esFisico) {
         await inventarioRepo.insertarMovimiento(client, {
           id_producto: item.id_producto,
           tipo_movimiento: 'salida',
@@ -161,80 +137,64 @@ export async function crear(body, idUsuario, empresaId = null) {
           origen: 'venta',
           id_referencia: venta.id_venta,
           id_usuario: idUsuario,
-          empresa_id: empresaId || 1
+          empresa_id: empresa
         });
       }
     }
 
-    // 5. Cuentas por Cobrar (si es crédito o si queda saldo pendiente)
-    let cxc = null;
-    const saldoPendiente = Math.round((totalOficial - montoPagadoFinal) * 100) / 100;
-
-    if (datos.condiciones_pago === 'credito' || saldoPendiente > 0) {
-      const cxcEstatus = montoPagadoFinal > 0 ? 'parcial' : 'pendiente';
-      cxc = await repo.crearCuentaPorCobrar(client, {
+    // RDF0906
+    if (saldo > 0) {
+      await repo.crearCuentaPorCobrar(client, {
         id_cliente: datos.id_cliente,
         id_venta: venta.id_venta,
         fecha_vencimiento: datos.fecha_vencimiento,
-        monto_original: totalOficial,
-        saldo_pendiente: saldoPendiente,
-        estatus: cxcEstatus,
-        empresa_id: empresaId || 1
+        monto_original: total,
+        saldo_pendiente: saldo,
+        estatus: montoPagado > 0 ? 'parcial' : 'pendiente',
+        empresa_id: empresa
       });
     }
 
-    // 6. Registro automático de Ingreso y afectación en Caja (si hubo pago inmediato)
-    let idIngreso = null;
-    if (montoPagadoFinal > 0) {
-      const idCategoria = await repo.obtenerCategoriaVentas(client, empresaId);
-
-      idIngreso = await ingresoService.registrarAutomatico(client, {
+    // RDF0905
+    if (montoPagado > 0) {
+      const idCategoria = await repo.obtenerCategoriaVentas(client, empresa);
+      await ingresoService.registrarAutomatico(client, {
         concepto: `Venta folio ${codigo}`,
         id_categoria: idCategoria,
-        monto: montoPagadoFinal,
+        monto: montoPagado,
         forma_pago: datos.forma_pago,
         origen: 'venta',
         id_venta: venta.id_venta,
         id_usuario: idUsuario,
-        empresa_id: empresaId || 1
+        empresa_id: empresa
       });
     }
 
-    return {
-      id_venta: venta.id_venta,
-      codigo,
-      cxc_creada: Boolean(cxc),
-      id_cxc: cxc?.id_cxc ?? null,
-      saldo_pendiente: saldoPendiente,
-      id_ingreso: idIngreso
-    };
+    return venta.id_venta;
   });
 
-  return obtener(resultado.id_venta);
+  return obtener(resultado, empresaId);
 }
 
-/**
- * Cancelación de venta:
- * Reversa inventario, cancela CxC (si no tiene cobros), cancela ingresos y revierte caja.
- */
+/** Cancelación: revierte inventario, CxC, ingresos y caja. */
 export async function cancelar(idParam, body = {}, idUsuario, empresaId = null) {
   const id = parseId(idParam);
   const motivo = String(body.motivo || '').trim() || 'Cancelación de venta';
 
   await repo.conTransaccion(async (client) => {
-    const venta = await repo.bloquearVenta(client, id);
+    const venta = await repo.bloquearVenta(client, id, empresaId);
+    if (!venta) throw new AppError('La venta solicitada no existe.', 404);
 
-    if (!venta) {
-      throw new AppError('La venta solicitada no existe.', 404);
-    }
-
-    if (String(venta.estatus).toLowerCase() === 'cancelada') {
+    if (String(venta.estatus).toLowerCase() === ESTATUS.CANCELADA) {
       throw new AppError('La venta ya se encuentra cancelada.', 409);
     }
 
-    // Comprobar si tiene cobros posteriores en Cuentas por Cobrar
+    if ((await repo.contarDevoluciones(client, id)) > 0) {
+      throw new AppError('La venta ya tiene devoluciones registradas y no puede cancelarse.', 409, { code: 'VENTA_CON_DEVOLUCIONES' });
+    }
+
     const cobros = await repo.obtenerCobrosDeVenta(client, id);
-    if (cobros && cobros.length > 0) {
+    if (cobros.length > 0) {
       throw new AppError(
         'No es posible cancelar la venta porque tiene cobros registrados en Cuentas por Cobrar. Para continuar, cancela primero los cobros relacionados.',
         409,
@@ -242,25 +202,107 @@ export async function cancelar(idParam, body = {}, idUsuario, empresaId = null) 
       );
     }
 
-    // 1. Revertir existencias de inventario
     const items = await repo.findItemsByVentaId(id, client);
-
     for (const item of items) {
-      if (String(item.tipo_producto).toLowerCase() === 'producto') {
-        const prodActual = await inventarioRepo.bloquearProducto(client, item.id_producto);
-        if (prodActual) {
-          const antes = Number(prodActual.stock ?? 0);
-          const despues = antes + Number(item.cantidad);
+      if (String(item.tipo_producto).toLowerCase() !== 'producto') continue;
+      const prod = await inventarioRepo.bloquearProducto(client, item.id_producto);
+      if (!prod) continue;
 
-          await inventarioRepo.actualizarStock(client, item.id_producto, despues);
+      const antes = Number(prod.stock ?? 0);
+      const despues = redondear(antes + Number(item.cantidad));
+      await inventarioRepo.actualizarStock(client, item.id_producto, despues);
+      await inventarioRepo.insertarMovimiento(client, {
+        id_producto: item.id_producto,
+        tipo_movimiento: 'entrada',
+        cantidad: Number(item.cantidad),
+        existencia_antes: antes,
+        existencia_despues: despues,
+        motivo: `Cancelación de venta folio ${venta.codigo}: ${motivo}`,
+        origen: 'venta',
+        id_referencia: venta.id_venta,
+        id_usuario: idUsuario,
+        empresa_id: empresaId || venta.empresa_id || 1
+      });
+    }
 
+    await repo.cancelarCuentaPorCobrar(client, id);
+    await ingresoService.cancelarPorOrigen(client, { id_venta: id, id_usuario: idUsuario });
+    await repo.cancelarVenta(client, id);
+  });
+
+  return obtener(id, empresaId);
+}
+
+/**
+ * RDF0907 – Devolución total o parcial:
+ * reingresa existencias, ajusta la CxC y, si el cliente ya había pagado de más,
+ * registra la salida de dinero.
+ */
+export async function devolver(idParam, body = {}, idUsuario, empresaId = null) {
+  const id = parseId(idParam);
+  const datos = validarDevolucion(body);
+
+  await repo.conTransaccion(async (client) => {
+    const venta = await repo.bloquearVenta(client, id, empresaId);
+    if (!venta) throw new AppError('La venta solicitada no existe.', 404);
+    if (String(venta.estatus).toLowerCase() === ESTATUS.CANCELADA) {
+      throw new AppError('No se puede devolver una venta cancelada.', 409);
+    }
+
+    const disponibles = await repo.itemsDevolubles(client, id);
+    let lineas;
+
+    if (datos.tipo === 'total') {
+      lineas = disponibles.filter((d) => d.disponible > 0).map((d) => ({ ...d, cantidad: d.disponible }));
+    } else {
+      lineas = datos.items.map((it) => {
+        const base = disponibles.find((d) => d.id_producto === it.id_producto);
+        if (!base) throw new AppError(`El producto ${it.id_producto} no pertenece a esta venta.`, 400);
+        if (it.cantidad > base.disponible) {
+          throw new AppError(
+            `Solo se pueden devolver ${base.disponible} de "${base.nombre}" (ya devueltas: ${base.devuelta}).`,
+            409
+          );
+        }
+        return { ...base, cantidad: it.cantidad };
+      });
+    }
+
+    if (lineas.length === 0) throw new AppError('No hay artículos pendientes por devolver en esta venta.', 409);
+
+    const devueltoAhora = new Map(lineas.map((l) => [l.id_producto, l.cantidad]));
+    const todoDevuelto = disponibles.every(
+      (d) => redondear(d.disponible - (devueltoAhora.get(d.id_producto) || 0)) <= 0
+    );
+
+    const { id_devolucion } = await repo.insertDevolucion(client, {
+      id_venta: id,
+      tipo: todoDevuelto ? 'total' : 'parcial',
+      id_usuario: idUsuario,
+      observaciones: datos.observaciones
+    });
+
+    for (const l of lineas) {
+      await repo.insertDetalleDevolucion(client, {
+        id_devolucion,
+        id_producto: l.id_producto,
+        cantidad: l.cantidad,
+        precio_unitario: l.precio_unitario
+      });
+
+      if (String(l.tipo).toLowerCase() === 'producto') {
+        const prod = await inventarioRepo.bloquearProducto(client, l.id_producto);
+        if (prod) {
+          const antes = Number(prod.stock ?? 0);
+          const despues = redondear(antes + l.cantidad);
+          await inventarioRepo.actualizarStock(client, l.id_producto, despues);
           await inventarioRepo.insertarMovimiento(client, {
-            id_producto: item.id_producto,
+            id_producto: l.id_producto,
             tipo_movimiento: 'entrada',
-            cantidad: Number(item.cantidad),
+            cantidad: l.cantidad,
             existencia_antes: antes,
             existencia_despues: despues,
-            motivo: `Cancelación de venta folio ${venta.codigo}: ${motivo}`,
+            motivo: `Devolución de venta folio ${venta.codigo}`,
             origen: 'venta',
             id_referencia: venta.id_venta,
             id_usuario: idUsuario,
@@ -270,18 +312,43 @@ export async function cancelar(idParam, body = {}, idUsuario, empresaId = null) 
       }
     }
 
-    // 2. Cancelar Cuenta por Cobrar si existía
-    await repo.cancelarCuentaPorCobrar(client, id);
+    // Ajuste financiero
+    const devueltoTotal = await repo.totalDevuelto(client, id);
+    const neto = redondear(Number(venta.total) - devueltoTotal);
+    const pagado = Number(venta.monto_pagado);
+    const reembolso = redondear(Math.max(0, pagado - neto));
+    const nuevoPagado = redondear(pagado - reembolso);
+    const saldo = redondear(Math.max(0, neto - nuevoPagado));
 
-    // 3. Cancelar ingresos vinculados y revertir caja
-    await ingresoService.cancelarPorOrigen(client, {
-      id_venta: id,
-      id_usuario: idUsuario
+    if (reembolso > 0) {
+      // Salida de dinero (egreso de caja). Requiere implementarse en ingresoService.
+      if (typeof ingresoService.registrarReembolsoVenta !== 'function') {
+        throw new AppError(
+          'Falta implementar ingresoService.registrarReembolsoVenta para registrar la salida de dinero de la devolución.',
+          501
+        );
+      }
+      await ingresoService.registrarReembolsoVenta(client, {
+        concepto: `Devolución de venta folio ${venta.codigo}`,
+        monto: reembolso,
+        forma_pago: venta.forma_pago,
+        id_venta: id,
+        id_devolucion,
+        id_usuario: idUsuario,
+        empresa_id: empresaId || venta.empresa_id || 1
+      });
+    }
+
+    const estatusVenta = todoDevuelto ? ESTATUS.CANCELADA : calcularEstatus(neto, nuevoPagado);
+    await repo.actualizarPagoVenta(client, id, { monto_pagado: nuevoPagado, estatus: estatusVenta });
+
+    const cxcEstatus = todoDevuelto ? 'cancelada' : saldo <= 0 ? 'pagada' : nuevoPagado > 0 ? 'parcial' : 'pendiente';
+    await repo.ajustarCuentaPorCobrar(client, id, {
+      monto_original: neto,
+      saldo_pendiente: todoDevuelto ? 0 : saldo,
+      estatus: cxcEstatus
     });
-
-    // 4. Marcar estatus de la venta como cancelada
-    await repo.cancelarVenta(client, id);
   });
 
-  return obtener(id);
+  return obtener(id, empresaId);
 }
