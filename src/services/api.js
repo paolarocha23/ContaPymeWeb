@@ -865,4 +865,21 @@ export const api = {
       body: JSON.stringify({ motivo })
     });
   },
+
+  async crearDevolucionCompra(id, datos) {
+    return this.request(`/compras/${encodeURIComponent(id)}/devoluciones`, {
+      method: 'POST',
+      body: JSON.stringify(datos)
+    });
+  },
+
+  async getDevolucionesCompra(id) {
+    return this.request(`/compras/${encodeURIComponent(id)}/devoluciones`);
+  },
+
+  async getDashboardData() {
+    return this.request('/dashboard');
+  }
 };
+
+export default api;

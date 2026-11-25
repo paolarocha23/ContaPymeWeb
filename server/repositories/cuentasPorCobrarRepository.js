@@ -245,11 +245,20 @@ export async function obtenerCategoriaCobros(client, empresaId = null) {
   const { rows } = await client.query(`
     SELECT id_categoria
     FROM categorias
-    WHERE LOWER(TRIM(nombre)) = LOWER('Cobros de clientes')
-      AND estatus = 1
+    WHERE estatus = 1
       AND ($1::int IS NULL OR empresa_id = $1)
+    ORDER BY
+      CASE
+        WHEN LOWER(TRIM(nombre)) = LOWER('Cobros de clientes') THEN 0
+        WHEN LOWER(TRIM(nombre)) LIKE '%cobro%' THEN 1
+        WHEN LOWER(TRIM(nombre)) LIKE '%venta%' THEN 2
+        WHEN LOWER(TRIM(nombre)) LIKE '%servicio%' THEN 3
+        WHEN LOWER(TRIM(nombre)) LIKE '%general%' THEN 4
+        ELSE 5
+      END,
+      id_categoria ASC
     LIMIT 1
   `, [empresaId]);
 
-  return rows[0]?.id_categoria || null;
+  return rows[0]?.id_categoria || 1;
 }

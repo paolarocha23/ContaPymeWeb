@@ -9,12 +9,22 @@ export const obtenerCuentas = async ({ estatus, busqueda } = {}, empresaId = nul
         condiciones.push(`cp.empresa_id = $${valores.length}`);
     }
 
-    if (estatus) {
+    if (estatus && estatus !== 'todas') {
         const estado = String(estatus).trim().toLowerCase();
 
         if (estado === 'vencida') {
             condiciones.push('cp.saldo_pendiente > 0');
             condiciones.push('cp.fecha_vencimiento < CURRENT_DATE');
+            condiciones.push(`LOWER(TRIM(cp.estatus)) NOT IN ('cancelada', 'saldada', 'pagada')`);
+        } else if (estado === 'saldada' || estado === 'pagada') {
+            condiciones.push(`(LOWER(TRIM(cp.estatus)) IN ('saldada', 'pagada') OR cp.saldo_pendiente <= 0)`);
+        } else if (estado === 'pendiente') {
+            condiciones.push(`LOWER(TRIM(cp.estatus)) = 'pendiente'`);
+            condiciones.push('cp.fecha_vencimiento >= CURRENT_DATE');
+            condiciones.push('cp.saldo_pendiente > 0');
+        } else if (estado === 'parcial') {
+            condiciones.push(`LOWER(TRIM(cp.estatus)) = 'parcial'`);
+            condiciones.push('cp.saldo_pendiente > 0');
         } else {
             valores.push(estado);
             condiciones.push(
@@ -28,6 +38,7 @@ export const obtenerCuentas = async ({ estatus, busqueda } = {}, empresaId = nul
         condiciones.push(`(
             p.nombre_empresa ILIKE $${valores.length}
             OR c.codigo ILIKE $${valores.length}
+            OR CAST(cp.id_cxp AS TEXT) ILIKE $${valores.length}
         )`);
     }
 
@@ -45,6 +56,14 @@ export const obtenerCuentas = async ({ estatus, busqueda } = {}, empresaId = nul
             cp.monto_original,
             cp.saldo_pendiente,
             cp.estatus,
+            CASE
+              WHEN LOWER(TRIM(cp.estatus)) = 'cancelada' THEN 'Cancelada'
+              WHEN COALESCE(cp.saldo_pendiente, 0) <= 0
+                OR LOWER(TRIM(cp.estatus)) IN ('saldada', 'pagada') THEN 'Saldada'
+              WHEN cp.fecha_vencimiento < CURRENT_DATE THEN 'Vencida'
+              WHEN LOWER(TRIM(cp.estatus)) = 'parcial' THEN 'Parcial'
+              ELSE 'Pendiente'
+            END AS estado_calculado,
             p.nombre_empresa AS proveedor,
             c.codigo AS codigo_compra
         FROM cuentas_por_pagar cp
@@ -53,7 +72,13 @@ export const obtenerCuentas = async ({ estatus, busqueda } = {}, empresaId = nul
         INNER JOIN compras c
             ON c.id_compra = cp.id_compra
         ${where}
-        ORDER BY cp.fecha_vencimiento ASC, cp.id_cxp DESC;
+        ORDER BY
+            CASE
+                WHEN cp.saldo_pendiente > 0 AND cp.fecha_vencimiento < CURRENT_DATE THEN 0
+                ELSE 1
+            END,
+            cp.fecha_vencimiento ASC,
+            cp.id_cxp DESC;
     `;
 
     const { rows } = await pool.query(query, valores);
@@ -115,23 +140,34 @@ export const obtenerPagos = async (idCxp) => {
 export const obtenerResumen = async (empresaId = null) => {
     const query = `
         SELECT
-            COUNT(*) AS total_cuentas,
             COUNT(*) FILTER (
-                WHERE saldo_pendiente > 0
-            ) AS cuentas_pendientes,
+                WHERE LOWER(TRIM(estatus)) <> 'cancelada'
+            )::INTEGER AS total_cuentas,
+            COUNT(*) FILTER (
+                WHERE LOWER(TRIM(estatus)) = 'pendiente'
+                AND saldo_pendiente > 0
+                AND fecha_vencimiento >= CURRENT_DATE
+            )::INTEGER AS cuentas_pendientes,
             COUNT(*) FILTER (
                 WHERE saldo_pendiente > 0
                 AND fecha_vencimiento < CURRENT_DATE
-            ) AS cuentas_vencidas,
+                AND LOWER(TRIM(estatus)) NOT IN ('cancelada', 'saldada', 'pagada')
+            )::INTEGER AS cuentas_vencidas,
+            COUNT(*) FILTER (
+                WHERE LOWER(TRIM(estatus)) = 'parcial'
+                AND saldo_pendiente > 0
+            )::INTEGER AS cuentas_parciales,
             COALESCE(
                 SUM(saldo_pendiente) FILTER (
                     WHERE saldo_pendiente > 0
+                    AND LOWER(TRIM(estatus)) NOT IN ('cancelada', 'saldada', 'pagada')
                 ), 0
             ) AS saldo_pendiente,
             COALESCE(
                 SUM(saldo_pendiente) FILTER (
                     WHERE saldo_pendiente > 0
                     AND fecha_vencimiento < CURRENT_DATE
+                    AND LOWER(TRIM(estatus)) NOT IN ('cancelada', 'saldada', 'pagada')
                 ), 0
             ) AS saldo_vencido
         FROM cuentas_por_pagar
@@ -147,15 +183,18 @@ export const obtenerResumen = async (empresaId = null) => {
 export const obtenerCuentaParaPago = async (idCxp, client) => {
     const query = `
         SELECT
-            id_cxp,
-            id_compra,
-            id_proveedor,
-            monto_original,
-            saldo_pendiente,
-            estatus
-        FROM cuentas_por_pagar
-        WHERE id_cxp = $1
-        FOR UPDATE;
+            cp.id_cxp,
+            cp.id_compra,
+            cp.id_proveedor,
+            cp.monto_original,
+            cp.saldo_pendiente,
+            cp.estatus,
+            cp.empresa_id,
+            c.codigo AS codigo_compra
+        FROM cuentas_por_pagar cp
+        INNER JOIN compras c ON c.id_compra = cp.id_compra
+        WHERE cp.id_cxp = $1
+        FOR UPDATE OF cp;
     `;
 
     const { rows } = await client.query(query, [idCxp]);

@@ -128,7 +128,7 @@ export const registrarPago = async (idCxp, datos, idUsuario, empresaId = null) =
         const nuevoSaldoCentavos = saldoCentavos - montoCentavos;
         const nuevoSaldo = (nuevoSaldoCentavos / 100).toFixed(2);
         const nuevoEstatus =
-            nuevoSaldoCentavos === 0 ? 'pagada' : 'parcial';
+            nuevoSaldoCentavos === 0 ? 'saldada' : 'parcial';
 
         // Guardar el pago.
         const pago = await registrarPagoCxp({
@@ -138,10 +138,10 @@ export const registrarPago = async (idCxp, datos, idUsuario, empresaId = null) =
             forma_pago: datos.forma_pago,
             id_usuario: Number(idUsuario),
             observaciones: datos.observaciones?.trim() || null,
-            empresa_id: empresaId
+            empresa_id: empresaId || cuenta.empresa_id || 1
         }, client);
 
-        // Actualizar el saldo y estatus.
+        // Actualizar el saldo y estatus de la cuenta por pagar (RDF1504).
         const cuentaActualizada = await actualizarSaldoCxp(
             id,
             nuevoSaldo,
@@ -149,19 +149,79 @@ export const registrarPago = async (idCxp, datos, idUsuario, empresaId = null) =
             client
         );
 
-        // Solo los pagos en efectivo afectan Caja.
+        // Actualizar el estatus de la compra asociada si aplica.
+        if (cuenta.id_compra) {
+            const estatusCompra = nuevoSaldoCentavos === 0 ? 'pagada' : 'parcial';
+            await client.query(`
+                UPDATE compras
+                SET estatus = $1
+                WHERE id_compra = $2
+            `, [estatusCompra, cuenta.id_compra]);
+        }
+
+        // RDF1502: Generar el gasto por el pago realizado al proveedor.
+        const catRes = await client.query(`
+            SELECT id_categoria
+            FROM categorias
+            WHERE estatus = 1 AND ($1::int IS NULL OR empresa_id = $1)
+            ORDER BY
+              CASE
+                WHEN LOWER(TRIM(nombre)) LIKE '%compra%' THEN 0
+                WHEN LOWER(TRIM(nombre)) LIKE '%mercanc%' THEN 1
+                WHEN LOWER(TRIM(nombre)) LIKE '%proveedor%' THEN 2
+                WHEN LOWER(TRIM(nombre)) LIKE '%operativ%' THEN 3
+                ELSE 4
+              END,
+              id_categoria ASC
+            LIMIT 1
+        `, [empresaId || cuenta.empresa_id]);
+
+        const idCategoria = catRes.rows[0]?.id_categoria || 1;
+        const conceptoGasto = `Pago de cuenta por pagar #${id}${cuenta.codigo_compra ? ' - Compra ' + cuenta.codigo_compra : ''}`;
+
+        const gastoRes = await client.query(`
+            INSERT INTO gastos (
+                fecha,
+                concepto,
+                id_categoria,
+                monto,
+                forma_pago,
+                observaciones,
+                id_usuario,
+                estatus,
+                empresa_id
+            )
+            VALUES (
+                COALESCE($1::timestamp, CURRENT_TIMESTAMP),
+                $2, $3, $4, $5, $6, $7, 'activo', $8
+            )
+            RETURNING *
+        `, [
+            pago.fecha,
+            conceptoGasto,
+            idCategoria,
+            monto.toFixed(2),
+            datos.forma_pago,
+            datos.observaciones?.trim() || `Pago de cuenta por pagar #${id}`,
+            Number(idUsuario),
+            empresaId || cuenta.empresa_id || 1
+        ]);
+
+        const gasto = gastoRes.rows[0];
+
+        // Solo los pagos en efectivo afectan Caja (RDF1502 / RF13).
         let movimientoCaja = null;
 
         if (datos.forma_pago === 'efectivo') {
             movimientoCaja = await registrarMovimientoCaja({
                 fecha: pago.fecha,
                 tipo: 'salida',
-                concepto: `Pago de cuenta por pagar #${id}`,
+                concepto: conceptoGasto,
                 monto: pago.monto,
                 origen: 'cxp',
                 id_referencia: pago.id_pago,
                 id_usuario: Number(idUsuario),
-                empresa_id: empresaId
+                empresa_id: empresaId || cuenta.empresa_id || 1
             }, client);
         }
 
@@ -170,6 +230,7 @@ export const registrarPago = async (idCxp, datos, idUsuario, empresaId = null) =
         return {
             pago,
             cuenta: cuentaActualizada,
+            gasto,
             movimiento_caja: movimientoCaja
         };
 

@@ -1,367 +1,189 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  ShoppingBag,
-  Plus,
-  RotateCw,
-  Search,
-  Filter,
-  DollarSign,
-  CreditCard,
-  Clock,
-  Eye,
-  Receipt,
-  FileQuestion
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Plus, Search, Eye, Ban, X, RotateCw, ShoppingBag, Banknote, Wallet, CircleAlert, CircleCheck } from 'lucide-react';
 import { api } from '../../services/api';
-import { useCompras } from '../../hooks/useCompras';
-import NuevaCompraModal from './NuevaCompraModal';
-import DetalleCompraModal from './DetalleCompraModal';
-import './Compras.css';
+import { useCompras, POR_PAGINA } from '../../hooks/useCompras';
+import {
+  formatMoney, formatFechaCorta, formatFechaISO, mesesOpciones, ETIQ_ESTATUS, TONO_ESTATUS, extraerLista
+} from '../../utils/opUtils';
+import { Pill, StatCard, Pagination } from './../Operaciones/shared';
+import NuevaCompraView from './NuevaCompraView';
+import CompraDetailView from './CompraDetailView';
+import CompraCancelModal from './CompraCancelModal';
+import '../Operaciones/Operaciones.css';
+
+const MESES = mesesOpciones();
 
 export default function ComprasView() {
   const {
-    compras,
-    stats,
-    loading,
-    error,
-    filtros,
-    actualizarFiltros,
-    recargar
+    compras, total, stats, comprasMes, canceladas, loading, error,
+    filtros, actualizarFiltros, limpiarFiltros, pagina, setPagina, recargar
   } = useCompras();
 
-  // Modales
-  const [modalNuevaCompraOpen, setModalNuevaCompraOpen] = useState(false);
-  const [idCompraDetalle, setIdCompraDetalle] = useState(null);
-  const [draftTicketsCount, setDraftTicketsCount] = useState(0);
-
-  const actualizarDraftCount = useCallback(() => {
-    try {
-      const user = api.getUser();
-      const storageKey = `contapyme_tickets_compras_${user?.empresa_id || 'default'}`;
-      const raw = localStorage.getItem(storageKey);
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          const conItems = parsed.filter((t) => t.items && t.items.length > 0).length;
-          setDraftTicketsCount(conItems);
-          return;
-        }
-      }
-    } catch {
-      // Ignorar error de parsing
-    }
-    setDraftTicketsCount(0);
-  }, []);
+  const [nueva, setNueva] = useState(false);
+  const [idDetalle, setIdDetalle] = useState(null);
+  const [idCancelar, setIdCancelar] = useState(null);
+  const [feedback, setFeedback] = useState(null);
+  const [proveedores, setProveedores] = useState([]);
 
   useEffect(() => {
-    actualizarDraftCount();
-  }, [modalNuevaCompraOpen, actualizarDraftCount]);
+    api.getSuppliers({ estatus: 1 })
+      .then((res) =>
+        setProveedores(
+          extraerLista(res).items
+            .map((p) => ({ id: p.id_proveedor ?? p.id, nombre: p.nombre_empresa || p.nombre }))
+            .filter((p) => p.id)
+        )
+      )
+      .catch(() => { });
+  }, []);
 
-  const formatCurrency = (val) => {
-    const num = Number(val) || 0;
-    return `$${num.toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
+  const hayFiltros = Object.values(filtros).some(Boolean);
 
-  const formatDate = (isoString) => {
-    if (!isoString) return '—';
-    const d = new Date(isoString);
-    return d.toLocaleDateString('es-MX', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    });
-  };
+  if (nueva) {
+    return (
+      <NuevaCompraView
+        onBack={() => setNueva(false)}
+        onSuccess={(compra) => {
+          setNueva(false);
+          recargar();
+          setFeedback({ type: 'success', message: `Compra ${compra?.codigo || ''} registrada exitosamente.` });
+        }}
+      />
+    );
+  }
 
-  const handleSearchChange = (e) => {
-    actualizarFiltros({ q: e.target.value });
-  };
-
-  const handleFilterChange = (field, value) => {
-    actualizarFiltros({ [field]: value });
-  };
-
-  const handleResetFilters = () => {
-    actualizarFiltros({
-      q: '',
-      estatus: 'todas',
-      condiciones_pago: 'todas',
-      desde: '',
-      hasta: ''
-    });
-  };
+  if (idDetalle) {
+    return <CompraDetailView idCompra={idDetalle} onBack={() => setIdDetalle(null)} onChanged={recargar} />;
+  }
 
   return (
-    <div className="compras">
-      {/* Header */}
-      <div className="compras-header">
+    <div className="op">
+      <div className="op-title">
         <div>
-          <h2>Módulo de Compras</h2>
-          <p>Adquisición de mercancías, entrada a inventario y control de cuentas por pagar</p>
+          <h2>Compras</h2>
+          <p>Consulta, registra y da seguimiento a las compras a tus proveedores.</p>
         </div>
-        <div className="compras-header-actions">
-          <button
-            type="button"
-            className="compras-btn-refresh"
-            onClick={recargar}
-            title="Recargar datos"
-          >
-            <RotateCw size={16} />
-            <span>Actualizar</span>
-          </button>
-          <button
-            type="button"
-            className="compras-btn-primary"
-            onClick={() => setModalNuevaCompraOpen(true)}
-            title={draftTicketsCount > 0 ? `${draftTicketsCount} orden(es) pendiente(s) en borrador` : 'Registrar compra'}
-          >
-            <Plus size={18} />
-            <span>Nueva Compra</span>
-            {draftTicketsCount > 0 && (
-              <span className="compras-badge-ticket-count">
-                {draftTicketsCount}
-              </span>
-            )}
-          </button>
-        </div>
+        <button type="button" className="btn btn-primary" onClick={() => setNueva(true)}>
+          <Plus size={18} /> Nueva compra
+        </button>
       </div>
 
-      {/* Metrics Cards */}
-      <div className="compras-stats">
-        <div className="compras-stat-card">
-          <div className="compras-stat-icon blue">
-            <DollarSign size={22} />
-          </div>
-          <div>
-            <span>Total Comprado</span>
-            <strong>{formatCurrency(stats?.monto_total_comprado)}</strong>
-          </div>
+      {feedback && (
+        <div className={`alert alert-${feedback.type}`} style={{ marginBottom: 0 }}>
+          {feedback.type === 'success' ? <CircleCheck size={18} /> : <CircleAlert size={18} />}
+          <div style={{ flex: 1 }}>{feedback.message}</div>
+          <button type="button" style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer' }} onClick={() => setFeedback(null)} aria-label="Cerrar aviso"><X size={16} /></button>
         </div>
+      )}
 
-        <div className="compras-stat-card">
-          <div className="compras-stat-icon green">
-            <ShoppingBag size={22} />
-          </div>
-          <div>
-            <span>Compras Realizadas</span>
-            <strong>{stats?.total_compras || 0}</strong>
-          </div>
-        </div>
-
-        <div className="compras-stat-card">
-          <div className="compras-stat-icon purple">
-            <CreditCard size={22} />
-          </div>
-          <div>
-            <span>Compras a Crédito</span>
-            <strong>{stats?.compras_credito || 0}</strong>
-          </div>
-        </div>
-
-        <div className="compras-stat-card">
-          <div className="compras-stat-icon amber">
-            <Clock size={22} />
-          </div>
-          <div>
-            <span>Por Pagar (CxP)</span>
-            <strong>{formatCurrency(stats?.saldo_por_pagar)}</strong>
-          </div>
-        </div>
-
-        <div className="compras-stat-card">
-          <div className="compras-stat-icon slate">
-            <Receipt size={22} />
-          </div>
-          <div>
-            <span>Ticket Promedio</span>
-            <strong>{formatCurrency(stats?.ticket_promedio)}</strong>
-          </div>
-        </div>
+      <div className="stat-card-grid" style={{ marginBottom: 0 }}>
+        <StatCard icon={<ShoppingBag size={22} />} label="Compras del mes" value={comprasMes} />
+        <StatCard icon={<Banknote size={22} />} label="Total comprado" value={formatMoney(stats?.monto_total_comprado)} />
+        <StatCard icon={<Wallet size={22} />} label="Por pagar" value={formatMoney(stats?.saldo_por_pagar)} tone="amber" />
+        <StatCard icon={<Ban size={22} />} label="Canceladas" value={canceladas} />
       </div>
 
-      {/* Search & Filters */}
-      <div className="compras-toolbar">
-        <div className="compras-search">
-          <Search size={18} />
-          <input
-            type="text"
-            placeholder="Buscar por folio, proveedor, contacto, teléfono o correo..."
-            value={filtros.q}
-            onChange={handleSearchChange}
-          />
-        </div>
+      <div className="content-box" style={{ padding: 0, marginBottom: 0, overflow: 'hidden' }}>
+        <div className="table-filter-bar" style={{ padding: '18px 22px', margin: 0, borderBottom: '1px solid #E4E8F5' }}>
+          <div className="table-search-input">
+            <div className="input-with-icon">
+              <Search className="input-icon" size={18} />
+              <input className="form-input form-input-pill" placeholder="Código, proveedor o producto..." value={filtros.q} onChange={(e) => actualizarFiltros({ q: e.target.value })} />
+            </div>
+          </div>
 
-        <div className="compras-filters">
-          <select
-            value={filtros.estatus}
-            onChange={(e) => handleFilterChange('estatus', e.target.value)}
-            title="Filtrar por estatus"
-          >
-            <option value="todas">Todos los estatus</option>
-            <option value="pagada">Pagadas</option>
-            <option value="parcial">Parciales</option>
-            <option value="pendiente_pago">Pendientes de Pago</option>
-            <option value="cancelada">Canceladas</option>
+          <select className="table-pill-select" value={filtros.id_proveedor} onChange={(e) => actualizarFiltros({ id_proveedor: e.target.value })}>
+            <option value="">Proveedor: Todos</option>
+            {proveedores.map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
           </select>
 
-          <select
-            value={filtros.condiciones_pago}
-            onChange={(e) => handleFilterChange('condiciones_pago', e.target.value)}
-            title="Filtrar por condición"
-          >
-            <option value="todas">Todas las condiciones</option>
-            <option value="contado">Contado</option>
-            <option value="credito">Crédito</option>
+          <select className="table-pill-select" value={filtros.estatus} onChange={(e) => actualizarFiltros({ estatus: e.target.value })}>
+            <option value="">Estatus: Todos</option>
+            <option value="pendiente_pago">Pendiente de pago</option>
+            <option value="parcial">Pago parcial</option>
+            <option value="pagada">Pagada</option>
+            <option value="cancelada">Cancelada</option>
           </select>
 
-          <input
-            type="date"
-            value={filtros.desde}
-            onChange={(e) => handleFilterChange('desde', e.target.value)}
-            title="Fecha inicio"
-            placeholder="Desde"
-          />
+          <select className="table-pill-select" value={filtros.mes} onChange={(e) => actualizarFiltros({ mes: e.target.value })}>
+            <option value="">Fecha: Todas</option>
+            {MESES.map((m) => <option key={m.val} value={m.val}>{m.lbl}</option>)}
+          </select>
 
-          <input
-            type="date"
-            value={filtros.hasta}
-            onChange={(e) => handleFilterChange('hasta', e.target.value)}
-            title="Fecha fin"
-            placeholder="Hasta"
-          />
-
-          {(filtros.q || filtros.estatus !== 'todas' || filtros.condiciones_pago !== 'todas' || filtros.desde || filtros.hasta) && (
-            <button
-              type="button"
-              className="compras-btn-refresh"
-              onClick={handleResetFilters}
-              style={{ padding: '7px 12px', fontSize: '0.8rem' }}
-            >
-              Limpiar
-            </button>
+          {hayFiltros && (
+            <button type="button" className="btn btn-ghost btn-sm" style={{ color: '#142A95', marginLeft: 'auto', fontWeight: 600 }} onClick={limpiarFiltros}>Limpiar</button>
           )}
         </div>
+
+        <div className="table-container-clean">
+          {loading ? (
+            <div className="op-empty" style={{ padding: '60px 0' }}>
+              <RotateCw className="spinning" size={28} style={{ color: '#183b9c' }} />
+              <div style={{ marginTop: 10 }}>Cargando compras...</div>
+            </div>
+          ) : error ? (
+            <div className="op-empty" style={{ color: '#C2362F' }}>
+              {error}
+              <div style={{ marginTop: 12 }}><button type="button" className="btn btn-secondary btn-sm" onClick={recargar}>Reintentar</button></div>
+            </div>
+          ) : (
+            <table className="table-clean">
+              <thead>
+                <tr>
+                  <th>CÓDIGO</th><th>FECHA</th><th>PROVEEDOR</th><th>USUARIO</th><th>TOTAL</th><th>VENCIMIENTO</th><th>ESTATUS</th>
+                  <th style={{ textAlign: 'right' }}>ACCIONES</th>
+                </tr>
+              </thead>
+              <tbody>
+                {compras.map((c) => {
+                  const cancelada = c.estatus === 'cancelada';
+                  const saldo = Number(c.saldo_pendiente ?? Math.max(0, Number(c.total) - Number(c.monto_pagado)));
+                  return (
+                    <tr key={c.id_compra}>
+                      <td><span className="op-code">{c.codigo || `OC-${c.id_compra}`}</span></td>
+                      <td>{formatFechaCorta(c.fecha)}</td>
+                      <td><b>{c.proveedor_nombre || 'Proveedor'}</b></td>
+                      <td>{c.usuario_nombre || c.usuario || '—'}</td>
+                      <td><b>{formatMoney(c.total)}</b></td>
+                      <td>{saldo > 0 && c.fecha_vencimiento ? <span className="op-venc">{formatFechaISO(c.fecha_vencimiento)}</span> : '—'}</td>
+                      <td><Pill tone={TONO_ESTATUS[c.estatus] || 'gray'}>{ETIQ_ESTATUS[c.estatus] || c.estatus}</Pill></td>
+                      <td>
+                        <div className="action-buttons-group" style={{ justifyContent: 'flex-end' }}>
+                          <button type="button" className="action-circle-btn" title="Ver detalle" onClick={() => setIdDetalle(c.id_compra)}><Eye size={16} /></button>
+                          <button
+                            type="button" className="action-circle-btn"
+                            style={{ background: '#FDE8E7', color: '#C2362F', opacity: cancelada ? 0.45 : 1 }}
+                            title={cancelada ? 'Compra cancelada' : 'Cancelar compra'}
+                            disabled={cancelada}
+                            onClick={() => setIdCancelar(c.id_compra)}
+                          ><Ban size={16} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {compras.length === 0 && (
+                  <tr><td colSpan={8} className="op-empty">{hayFiltros ? 'No se encontraron compras con esos filtros.' : 'Aún no hay compras registradas.'}</td></tr>
+                )}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {!loading && total > 0 && <Pagination pagina={pagina} total={total} porPagina={POR_PAGINA} onChange={setPagina} etiqueta="compras" />}
       </div>
 
-      {/* Main Content Table */}
-      <div className="compras-table-card">
-        {loading ? (
-          <div className="compras-loading">
-            <div className="compras-spinner" />
-            <span>Cargando compras...</span>
-          </div>
-        ) : error ? (
-          <div className="compras-empty">
-            <p style={{ color: '#ef4444' }}>{error}</p>
-            <button type="button" className="compras-btn-refresh" onClick={recargar}>
-              Reintentar
-            </button>
-          </div>
-        ) : compras.length === 0 ? (
-          <div className="compras-empty">
-            <FileQuestion size={44} className="compras-empty-icon" />
-            <p>No se encontraron registros de compras con los filtros aplicados.</p>
-            <button
-              type="button"
-              className="compras-btn-primary"
-              style={{ margin: '12px auto 0' }}
-              onClick={() => setModalNuevaCompraOpen(true)}
-            >
-              <Plus size={16} />
-              Registrar Primera Compra
-            </button>
-          </div>
-        ) : (
-          <table className="compras-table">
-            <thead>
-              <tr>
-                <th>Folio</th>
-                <th>Fecha</th>
-                <th>Proveedor</th>
-                <th>Condición</th>
-                <th style={{ textAlign: 'right' }}>Total</th>
-                <th style={{ textAlign: 'right' }}>Pagado</th>
-                <th style={{ textAlign: 'right' }}>Saldo Pend. (CxP)</th>
-                <th style={{ textAlign: 'center' }}>Estatus</th>
-                <th style={{ textAlign: 'center' }}>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {compras.map((c) => {
-                const total = Number(c.total || 0);
-                const pagado = Number(c.monto_pagado || 0);
-                const saldo = Number(c.saldo_pendiente ?? Math.max(0, total - pagado));
-
-                return (
-                  <tr key={c.id_compra}>
-                    <td>
-                      <span className="compras-codigo">{c.codigo || `COM-${c.id_compra}`}</span>
-                    </td>
-                    <td>{formatDate(c.fecha)}</td>
-                    <td>
-                      <div className="compras-proveedor-cell">
-                        <strong>{c.proveedor_nombre || 'Proveedor'}</strong>
-                        {(c.proveedor_contacto || c.proveedor_correo) && (
-                          <span>{c.proveedor_contacto || c.proveedor_correo}</span>
-                        )}
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`compras-badge-condicion compras-condicion-${c.condiciones_pago}`}>
-                        {c.condiciones_pago === 'credito' ? 'Crédito' : 'Contado'}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'right', fontWeight: 700 }}>
-                      {formatCurrency(total)}
-                    </td>
-                    <td style={{ textAlign: 'right', color: '#16a34a' }}>
-                      {formatCurrency(pagado)}
-                    </td>
-                    <td style={{ textAlign: 'right', color: saldo > 0 ? '#b91c1c' : '#64748b', fontWeight: saldo > 0 ? 600 : 400 }}>
-                      {formatCurrency(saldo)}
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <span className={`compras-badge compras-badge-${c.estatus}`}>
-                        {c.estatus === 'pendiente_pago' ? 'Pendiente' : c.estatus}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <div className="compras-actions-cell" style={{ justifyContent: 'center' }}>
-                        <button
-                          type="button"
-                          className="compras-btn-action"
-                          onClick={() => setIdCompraDetalle(c.id_compra)}
-                          title="Ver detalle completo"
-                        >
-                          <Eye size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* Modal Nueva Compra */}
-      <NuevaCompraModal
-        isOpen={modalNuevaCompraOpen}
-        onClose={() => setModalNuevaCompraOpen(false)}
-        onSuccess={() => {
-          recargar();
-        }}
-      />
-
-      {/* Modal Detalle Compra */}
-      <DetalleCompraModal
-        idCompra={idCompraDetalle}
-        isOpen={Boolean(idCompraDetalle)}
-        onClose={() => setIdCompraDetalle(null)}
-        onCompraCancelada={() => {
-          recargar();
-        }}
-      />
+      {idCancelar && (
+        <CompraCancelModal
+          idCompra={idCancelar}
+          onClose={() => setIdCancelar(null)}
+          onDone={(c) => {
+            setIdCancelar(null);
+            recargar();
+            setFeedback({ type: 'success', message: `Compra ${c?.codigo || ''} cancelada. Se revirtieron inventario y cuenta por pagar.` });
+          }}
+        />
+      )}
     </div>
   );
 }

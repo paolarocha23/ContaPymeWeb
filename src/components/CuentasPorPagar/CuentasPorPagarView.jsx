@@ -36,12 +36,16 @@ const formatoFecha = (fecha) => {
 
 
 const obtenerEstado = (cuenta) => {
-    const estado = String(cuenta.estatus || '').toLowerCase();
+    const estado = String(cuenta.estado_calculado || cuenta.estatus || '').toLowerCase();
     const saldo = Number(cuenta.saldo_pendiente || 0);
 
-    // Cuenta completamente pagada
-    if (saldo <= 0 || estado === 'pagada') {
-        return 'Pagada';
+    if (estado === 'cancelada') {
+        return 'Cancelada';
+    }
+
+    // Cuenta completamente pagada / saldada
+    if (saldo <= 0 || estado === 'saldada' || estado === 'pagada') {
+        return 'Saldada';
     }
 
     // Comprobar si la fecha de vencimiento ya pasó
@@ -72,10 +76,12 @@ const obtenerEstado = (cuenta) => {
 
 const claseEstado = (estado) => {
     const clases = {
+        Saldada: 'badge-active',
         Pagada: 'badge-active',
         Pendiente: 'badge-custom',
         Parcial: 'badge-encargado',
-        Vencida: 'badge-inactive'
+        Vencida: 'badge-inactive',
+        Cancelada: 'badge-inactive'
     };
 
     return clases[estado] || 'badge-inactive';
@@ -366,8 +372,8 @@ export default function CuentasPorPagarView() {
                         <option value="">Estatus: Todos</option>
                         <option value="pendiente">Pendientes</option>
                         <option value="parcial">Parciales</option>
-                        <option value="pagada">Pagadas</option>
                         <option value="vencida">Vencidas</option>
+                        <option value="saldada">Saldadas</option>
                     </select>
                 </div>
 

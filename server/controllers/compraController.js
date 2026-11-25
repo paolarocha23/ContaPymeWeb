@@ -68,3 +68,29 @@ export const cancelarCompraController = asyncHandler(async (req, res) => {
     data: resultado
   });
 });
+
+export const registrarDevolucionController = asyncHandler(async (req, res) => {
+  const resultado = await compraService.devolver(
+    req.params.id,
+    req.body,
+    req.user.id_usuario,
+    req.user.empresa_id
+  );
+
+  await auditar(
+    req,
+    'DEVOLUCION_COMPRA',
+    `Se registró devolución en la compra folio "${resultado.codigo}" (ID: ${resultado.id_compra}). Tipo: ${resultado.tipo}. Monto devuelto: $${resultado.monto_devuelto}`
+  );
+
+  res.status(201).json({
+    success: true,
+    message: 'Devolución de compra registrada exitosamente.',
+    data: resultado
+  });
+});
+
+export const getDevolucionesController = asyncHandler(async (req, res) => {
+  const devoluciones = await compraService.listarDevoluciones(req.params.id, req.user.empresa_id);
+  res.json({ success: true, data: devoluciones });
+});

@@ -5,7 +5,9 @@ import {
   getCompraById,
   getSiguienteFolio,
   createCompra,
-  cancelarCompraController
+  cancelarCompraController,
+  registrarDevolucionController,
+  getDevolucionesController
 } from '../controllers/compraController.js';
 import { verifyToken, requirePermission } from '../middleware/authMiddleware.js';
 
@@ -20,5 +22,7 @@ router.get('/', getCompras);
 router.get('/:id', getCompraById);
 router.post('/', createCompra);
 router.post('/:id/cancelar', cancelarCompraController);
+router.post('/:id/devoluciones', registrarDevolucionController);
+router.get('/:id/devoluciones', getDevolucionesController);
 
 export default router;

@@ -54,7 +54,21 @@ export async function list(filtros = {}, empresaId = null) {
       p.nombre_empresa ILIKE $${pIndex} OR
       p.nombre_contacto ILIKE $${pIndex} OR
       p.telefono ILIKE $${pIndex} OR
-      p.correo ILIKE $${pIndex}
+      p.correo ILIKE $${pIndex} OR
+      EXISTS (
+        SELECT 1 FROM detalle_compras dc_q
+        JOIN productos prod_q ON prod_q.id_producto = dc_q.id_producto
+        WHERE dc_q.id_compra = c.id_compra
+          AND (prod_q.nombre ILIKE $${pIndex} OR prod_q.codigo ILIKE $${pIndex})
+      )
+    )`);
+  }
+
+  if (filtros.id_producto) {
+    params.push(filtros.id_producto);
+    condiciones.push(`EXISTS (
+      SELECT 1 FROM detalle_compras dc_p
+      WHERE dc_p.id_compra = c.id_compra AND dc_p.id_producto = $${params.length}
     )`);
   }
 
@@ -496,4 +510,153 @@ export async function actualizarCostoProducto(client, idProducto, nuevoCosto, em
   `;
   const res = await client.query(sql, [nuevoCosto, idProducto, empresaId]);
   return res.rows[0] || null;
+}
+
+export async function contarDevoluciones(client, idCompra) {
+  const sql = `
+    SELECT COUNT(*)::int AS total
+    FROM devoluciones_compra
+    WHERE id_compra = $1
+  `;
+  const res = await client.query(sql, [idCompra]);
+  return Number(res.rows[0]?.total || 0);
+}
+
+export async function itemsDevolubles(client, idCompra) {
+  const sql = `
+    SELECT
+      dc.id_producto,
+      p.nombre,
+      p.tipo,
+      p.stock,
+      dc.costo_unitario,
+      SUM(dc.cantidad) AS cantidad_comprada,
+      COALESCE((
+        SELECT SUM(ddc.cantidad)
+        FROM detalle_devoluciones_compra ddc
+        JOIN devoluciones_compra dev ON dev.id_devolucion = ddc.id_devolucion
+        WHERE dev.id_compra = dc.id_compra AND ddc.id_producto = dc.id_producto
+      ), 0) AS cantidad_devuelta
+    FROM detalle_compras dc
+    INNER JOIN productos p ON p.id_producto = dc.id_producto
+    WHERE dc.id_compra = $1
+    GROUP BY dc.id_compra, dc.id_producto, p.nombre, p.tipo, p.stock, dc.costo_unitario
+  `;
+  const { rows } = await client.query(sql, [idCompra]);
+  return rows.map((r) => {
+    const comprada = Number(r.cantidad_comprada);
+    const devuelta = Number(r.cantidad_devuelta);
+    const disponible = Math.max(0, Number((comprada - devuelta).toFixed(4)));
+    return {
+      id_producto: r.id_producto,
+      nombre: r.nombre,
+      tipo: r.tipo,
+      stock: Number(r.stock ?? 0),
+      costo_unitario: Number(r.costo_unitario),
+      comprada,
+      devuelta,
+      disponible
+    };
+  });
+}
+
+export async function insertDevolucion(client, datos) {
+  const sql = `
+    INSERT INTO devoluciones_compra (
+      id_compra,
+      fecha,
+      tipo,
+      id_usuario,
+      observaciones,
+      empresa_id
+    ) VALUES ($1, CURRENT_TIMESTAMP, $2, $3, $4, $5)
+    RETURNING id_devolucion, fecha, tipo
+  `;
+  const res = await client.query(sql, [
+    datos.id_compra,
+    datos.tipo || 'parcial',
+    datos.id_usuario,
+    datos.observaciones || null,
+    datos.empresa_id || 1
+  ]);
+  return res.rows[0];
+}
+
+export async function insertDetalleDevolucion(client, datos) {
+  const sql = `
+    INSERT INTO detalle_devoluciones_compra (
+      id_devolucion,
+      id_producto,
+      cantidad,
+      costo_unitario,
+      empresa_id
+    ) VALUES ($1, $2, $3, $4, $5)
+    RETURNING *
+  `;
+  const res = await client.query(sql, [
+    datos.id_devolucion,
+    datos.id_producto,
+    datos.cantidad,
+    datos.costo_unitario,
+    datos.empresa_id || 1
+  ]);
+  return res.rows[0];
+}
+
+export async function listarDevoluciones(idCompra, db = pool) {
+  const sql = `
+    SELECT
+      dev.id_devolucion,
+      dev.id_compra,
+      dev.fecha,
+      dev.tipo,
+      dev.observaciones,
+      TRIM(CONCAT(u.nombre, ' ', COALESCE(u.apellido_paterno, ''))) AS usuario_nombre,
+      COALESCE(SUM(ddc.cantidad * ddc.costo_unitario), 0) AS monto_total,
+      json_agg(
+        json_build_object(
+          'id_det_dev_compra', ddc.id_det_dev_compra,
+          'id_producto', ddc.id_producto,
+          'cantidad', ddc.cantidad,
+          'costo_unitario', ddc.costo_unitario,
+          'producto_nombre', p.nombre,
+          'codigo_producto', p.codigo
+        )
+      ) FILTER (WHERE ddc.id_det_dev_compra IS NOT NULL) AS items
+    FROM devoluciones_compra dev
+    LEFT JOIN usuarios u ON u.id_usuario = dev.id_usuario
+    LEFT JOIN detalle_devoluciones_compra ddc ON ddc.id_devolucion = dev.id_devolucion
+    LEFT JOIN productos p ON p.id_producto = ddc.id_producto
+    WHERE dev.id_compra = $1
+    GROUP BY dev.id_devolucion, dev.id_compra, dev.fecha, dev.tipo, dev.observaciones, u.nombre, u.apellido_paterno
+    ORDER BY dev.fecha DESC, dev.id_devolucion DESC
+  `;
+  const res = await db.query(sql, [idCompra]);
+  return res.rows.map(r => ({
+    ...r,
+    monto_total: Number(r.monto_total || 0),
+    items: r.items || []
+  }));
+}
+
+export async function obtenerCategoriaReembolso(client, empresaId = null) {
+  const sql = `
+    SELECT id_categoria
+    FROM categorias
+    WHERE estatus = 1
+      AND ($1::int IS NULL OR empresa_id = $1::int)
+    ORDER BY
+      CASE
+        WHEN LOWER(nombre) LIKE '%devol%' THEN 0
+        WHEN LOWER(nombre) LIKE '%reembolso%' THEN 1
+        WHEN LOWER(nombre) LIKE '%cobro%' THEN 2
+        WHEN LOWER(nombre) LIKE '%compra%' THEN 3
+        WHEN LOWER(nombre) LIKE '%general%' THEN 4
+        ELSE 5
+      END,
+      id_categoria ASC
+    LIMIT 1
+  `;
+  const res = await client.query(sql, [empresaId]);
+  return res.rows[0]?.id_categoria || 1;
 }

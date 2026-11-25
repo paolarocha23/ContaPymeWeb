@@ -1,7 +1,7 @@
 import { AppError } from '../utils/http.js';
 
 export const ORIGENES = ['venta', 'cobro', 'otro'];
-export const FORMAS_PAGO = ['efectivo', 'tarjeta'];
+export const FORMAS_PAGO = ['efectivo', 'tarjeta', 'transfer'];
 export const ESTATUS = ['activo', 'cancelado'];
 
 const MAX_MONTO = 9999999999.99; // numeric(12,2)

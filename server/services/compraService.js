@@ -2,7 +2,7 @@ import * as repo from '../repositories/compraRepository.js';
 import * as inventarioRepo from '../repositories/inventarioRepository.js';
 import * as gastosRepo from '../repositories/gastosRepository.js';
 import { AppError } from '../utils/http.js';
-import { parseId, validarFiltros, validarCompra } from '../validators/compraValidator.js';
+import { parseId, validarFiltros, validarCompra, validarDevolucionCompra } from '../validators/compraValidator.js';
 
 export async function listar(query = {}, empresaId = null) {
   const filtros = validarFiltros(query);
@@ -21,12 +21,22 @@ export async function obtener(idParam, empresaId = null) {
     throw new AppError('La compra solicitada no existe.', 404);
   }
 
-  const items = await repo.findItemsByCompraId(id, empresaId);
+  const [items, devoluciones] = await Promise.all([
+    repo.findItemsByCompraId(id, empresaId),
+    repo.listarDevoluciones(id)
+  ]);
 
   return {
     ...compra,
-    items
+    items,
+    devoluciones
   };
+}
+
+export async function listarDevoluciones(idParam, empresaId = null) {
+  const id = parseId(idParam);
+  await obtener(id, empresaId);
+  return await repo.listarDevoluciones(id);
 }
 
 export async function siguienteFolio(empresaId = null) {
@@ -247,7 +257,15 @@ export async function cancelar(idParam, motivo = '', idUsuario, empresaId = null
       throw new AppError('Esta compra ya se encuentra cancelada.', 400);
     }
 
-    // 2. Verificar si tiene pagos en CxP
+    // 2. Verificar si tiene pagos en CxP o devoluciones registradas
+    const devolucionesCount = await repo.contarDevoluciones(client, idCompra);
+    if (devolucionesCount > 0) {
+      throw new AppError(
+        `No es posible cancelar la compra folio ${compra.codigo} porque ya cuenta con ${devolucionesCount} devolución(es) registrada(s).`,
+        409
+      );
+    }
+
     const pagosCxp = await repo.obtenerPagosDeCxp(client, idCompra);
     if (pagosCxp && pagosCxp.length > 0) {
       throw new AppError(
@@ -338,6 +356,305 @@ export async function cancelar(idParam, motivo = '', idUsuario, empresaId = null
       codigo: compraCancelada.codigo,
       estatus: compraCancelada.estatus,
       mensaje: 'Compra cancelada exitosamente. Se ha revertido el inventario, la cuenta por pagar y los movimientos financieros.'
+    };
+  });
+
+  return resultado;
+}
+
+/**
+ * Registra la devolución total o parcial de una compra (RDF1006):
+ * - Descuenta las existencias en inventario.
+ * - Ajusta la cuenta por pagar vinculada o registra el ingreso por reembolso.
+ * - Registra la devolución y sus partidas.
+ */
+export async function devolver(idParam, body = {}, idUsuario, empresaId = null) {
+  const idCompra = parseId(idParam);
+  const datos = validarDevolucionCompra(body);
+
+  const resultado = await repo.conTransaccion(async (client) => {
+    // 1. Bloquear compra y verificar existencia
+    const compra = await repo.bloquearCompra(client, idCompra, empresaId);
+
+    if (!compra) {
+      throw new AppError('La compra solicitada no existe.', 404);
+    }
+
+    if (String(compra.estatus).toLowerCase() === 'cancelada') {
+      throw new AppError('No se puede registrar devolución en una compra cancelada.', 409);
+    }
+
+    // 2. Obtener productos y cantidades disponibles para devolución
+    const disponibles = await repo.itemsDevolubles(client, idCompra);
+    const lineas = datos.items.map((it) => {
+      const base = disponibles.find((d) => d.id_producto === it.id_producto);
+      if (!base) {
+        throw new AppError(`El producto ${it.id_producto} no pertenece a esta compra.`, 400);
+      }
+      if (it.cantidad > base.disponible) {
+        throw new AppError(
+          `Solo se pueden devolver ${base.disponible} piezas de "${base.nombre}" (ya devueltas: ${base.devuelta}).`,
+          409
+        );
+      }
+      return { ...base, cantidad: it.cantidad };
+    });
+
+    if (lineas.length === 0) {
+      throw new AppError('No hay artículos válidos para devolver en esta compra.', 400);
+    }
+
+    // 3. Validar que las existencias de inventario no queden negativas
+    for (const l of lineas) {
+      if (String(l.tipo).toLowerCase() === 'producto') {
+        const prod = await inventarioRepo.bloquearProducto(client, l.id_producto, compra.empresa_id);
+        if (prod) {
+          const stockActual = Number(prod.stock ?? 0);
+          if (stockActual < l.cantidad) {
+            throw new AppError(
+              `No es posible devolver ${l.cantidad} pieza(s) de "${prod.nombre}" porque el inventario actual es de ${stockActual}.`,
+              409
+            );
+          }
+        }
+      }
+    }
+
+    const devueltoAhora = new Map(lineas.map((l) => [l.id_producto, l.cantidad]));
+    const todoDevuelto = disponibles.every(
+      (d) => Number((d.disponible - (devueltoAhora.get(d.id_producto) || 0)).toFixed(4)) <= 0
+    );
+
+    // 4. Insertar cabecera de devolución
+    const devolucion = await repo.insertDevolucion(client, {
+      id_compra: idCompra,
+      tipo: todoDevuelto ? 'total' : 'parcial',
+      id_usuario: idUsuario,
+      observaciones: datos.observaciones,
+      empresa_id: compra.empresa_id || empresaId || 1
+    });
+
+    // 5. Insertar detalle de devolución y descontar existencias de inventario (RDF1004 / RDF1006)
+    let montoDevuelto = 0;
+    for (const l of lineas) {
+      const subtotalLinea = Number((l.cantidad * l.costo_unitario).toFixed(2));
+      montoDevuelto = Number((montoDevuelto + subtotalLinea).toFixed(2));
+
+      await repo.insertDetalleDevolucion(client, {
+        id_devolucion: devolucion.id_devolucion,
+        id_producto: l.id_producto,
+        cantidad: l.cantidad,
+        costo_unitario: l.costo_unitario,
+        empresa_id: compra.empresa_id || empresaId || 1
+      });
+
+      if (String(l.tipo).toLowerCase() === 'producto') {
+        const prod = await inventarioRepo.bloquearProducto(client, l.id_producto, compra.empresa_id);
+        if (prod) {
+          const stockActual = Number(prod.stock ?? 0);
+          const nuevoStock = Number((stockActual - l.cantidad).toFixed(4));
+
+          await inventarioRepo.actualizarStock(client, l.id_producto, nuevoStock);
+
+          await inventarioRepo.insertarMovimiento(client, {
+            id_producto: l.id_producto,
+            tipo_movimiento: 'salida',
+            cantidad: l.cantidad,
+            existencia_antes: stockActual,
+            existencia_despues: nuevoStock,
+            motivo: `Devolución compra folio ${compra.codigo}${datos.observaciones ? ': ' + datos.observaciones : ''}`,
+            origen: 'compra',
+            id_referencia: idCompra,
+            id_usuario: idUsuario,
+            empresa_id: compra.empresa_id || empresaId || 1
+          });
+        }
+      }
+    }
+
+    // 6. Resolución financiera (RDF1006):
+    // Ajustar cuenta por pagar o registrar ingreso por reembolso
+    const cxpRes = await client.query(`
+      SELECT id_cxp, saldo_pendiente, estatus, monto_original
+      FROM cuentas_por_pagar
+      WHERE id_compra = $1
+      ORDER BY id_cxp DESC
+      LIMIT 1
+    `, [idCompra]);
+    const cxp = cxpRes.rows[0];
+
+    let cxpAjustada = null;
+    let ingresoReembolso = null;
+
+    if (datos.resolucion === 'ingreso') {
+      // El usuario solicitó ingreso (reembolso) directamente
+      const idCatIngreso = await repo.obtenerCategoriaReembolso(client, compra.empresa_id || empresaId);
+
+      const ingresoRes = await client.query(`
+        INSERT INTO ingresos (
+          concepto,
+          id_categoria,
+          monto,
+          forma_pago,
+          origen,
+          fecha,
+          id_usuario,
+          estatus,
+          empresa_id
+        ) VALUES ($1, $2, $3, 'efectivo', 'otro', CURRENT_TIMESTAMP, $4, 'activo', $5)
+        RETURNING *
+      `, [
+        `Reembolso por devolución de compra folio ${compra.codigo}`,
+        idCatIngreso,
+        montoDevuelto,
+        idUsuario,
+        compra.empresa_id || empresaId || 1
+      ]);
+      ingresoReembolso = ingresoRes.rows[0];
+
+      // Entrada en caja en efectivo
+      await gastosRepo.registrarMovimientoCaja({
+        fecha: new Date(),
+        tipo: 'entrada',
+        concepto: `Reembolso por devolución de compra folio ${compra.codigo}`,
+        monto: montoDevuelto,
+        origen: 'ingreso',
+        id_referencia: ingresoReembolso.id_ingreso,
+        id_usuario: idUsuario,
+        empresa_id: compra.empresa_id || empresaId || 1
+      }, client);
+
+    } else {
+      // Ajustar cuenta por pagar (resolución por defecto)
+      if (cxp && Number(cxp.saldo_pendiente) > 0) {
+        const saldoAnterior = Number(cxp.saldo_pendiente);
+
+        if (montoDevuelto <= saldoAnterior) {
+          const nuevoSaldo = Number((saldoAnterior - montoDevuelto).toFixed(2));
+          const nuevoEstatus = nuevoSaldo === 0 ? 'saldada' : cxp.estatus;
+
+          await client.query(`
+            UPDATE cuentas_por_pagar
+            SET saldo_pendiente = $1, estatus = $2
+            WHERE id_cxp = $3
+          `, [nuevoSaldo, nuevoEstatus, cxp.id_cxp]);
+
+          cxpAjustada = { id_cxp: cxp.id_cxp, saldo_pendiente: nuevoSaldo, estatus: nuevoEstatus };
+        } else {
+          // El monto devuelto supera el saldo pendiente de CxP:
+          // Se salda la CxP a 0 y el excedente se reembolsa a la empresa como ingreso
+          const excedente = Number((montoDevuelto - saldoAnterior).toFixed(2));
+
+          await client.query(`
+            UPDATE cuentas_por_pagar
+            SET saldo_pendiente = 0, estatus = 'saldada'
+            WHERE id_cxp = $1
+          `, [cxp.id_cxp]);
+
+          cxpAjustada = { id_cxp: cxp.id_cxp, saldo_pendiente: 0, estatus: 'saldada' };
+
+          if (excedente > 0) {
+            const idCatIngreso = await repo.obtenerCategoriaReembolso(client, compra.empresa_id || empresaId);
+
+            const ingresoRes = await client.query(`
+              INSERT INTO ingresos (
+                concepto,
+                id_categoria,
+                monto,
+                forma_pago,
+                origen,
+                fecha,
+                id_usuario,
+                estatus,
+                empresa_id
+              ) VALUES ($1, $2, $3, 'efectivo', 'otro', CURRENT_TIMESTAMP, $4, 'activo', $5)
+              RETURNING *
+            `, [
+              `Reembolso excedente por devolución compra folio ${compra.codigo}`,
+              idCatIngreso,
+              excedente,
+              idUsuario,
+              compra.empresa_id || empresaId || 1
+            ]);
+            ingresoReembolso = ingresoRes.rows[0];
+
+            await gastosRepo.registrarMovimientoCaja({
+              fecha: new Date(),
+              tipo: 'entrada',
+              concepto: `Reembolso excedente por devolución compra folio ${compra.codigo}`,
+              monto: excedente,
+              origen: 'ingreso',
+              id_referencia: ingresoReembolso.id_ingreso,
+              id_usuario: idUsuario,
+              empresa_id: compra.empresa_id || empresaId || 1
+            }, client);
+          }
+        }
+      } else {
+        // La compra ya estaba pagada o de contado: se genera ingreso por reembolso (RDF1006)
+        const idCatIngreso = await repo.obtenerCategoriaReembolso(client, compra.empresa_id || empresaId);
+
+        const ingresoRes = await client.query(`
+          INSERT INTO ingresos (
+            concepto,
+            id_categoria,
+            monto,
+            forma_pago,
+            origen,
+            fecha,
+            id_usuario,
+            estatus,
+            empresa_id
+          ) VALUES ($1, $2, $3, 'efectivo', 'otro', CURRENT_TIMESTAMP, $4, 'activo', $5)
+          RETURNING *
+        `, [
+          `Reembolso por devolución de compra folio ${compra.codigo}`,
+          idCatIngreso,
+          montoDevuelto,
+          idUsuario,
+          compra.empresa_id || empresaId || 1
+        ]);
+        ingresoReembolso = ingresoRes.rows[0];
+
+        await gastosRepo.registrarMovimientoCaja({
+          fecha: new Date(),
+          tipo: 'entrada',
+          concepto: `Reembolso por devolución de compra folio ${compra.codigo}`,
+          monto: montoDevuelto,
+          origen: 'ingreso',
+          id_referencia: ingresoReembolso.id_ingreso,
+          id_usuario: idUsuario,
+          empresa_id: compra.empresa_id || empresaId || 1
+        }, client);
+      }
+    }
+
+    // 7. Actualizar estatus y total de la compra
+    const nuevoTotal = Math.max(0, Number((Number(compra.total) - montoDevuelto).toFixed(2)));
+    let nuevoEstatus = compra.estatus;
+
+    if (todoDevuelto) {
+      nuevoEstatus = 'cancelada';
+    } else if (cxpAjustada && cxpAjustada.saldo_pendiente === 0) {
+      nuevoEstatus = 'pagada';
+    }
+
+    await client.query(`
+      UPDATE compras
+      SET total = $1, estatus = $2
+      WHERE id_compra = $3
+    `, [nuevoTotal, nuevoEstatus, idCompra]);
+
+    return {
+      id_devolucion: devolucion.id_devolucion,
+      id_compra: idCompra,
+      codigo: compra.codigo,
+      tipo: todoDevuelto ? 'total' : 'parcial',
+      monto_devuelto: montoDevuelto,
+      nuevo_total: nuevoTotal,
+      estatus: nuevoEstatus,
+      cxp_ajustada: cxpAjustada,
+      ingreso_reembolso: ingresoReembolso
     };
   });
 

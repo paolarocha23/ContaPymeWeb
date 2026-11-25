@@ -152,3 +152,30 @@ export function validarCompra(body = {}) {
     items: itemsValidados
   };
 }
+
+export function validarDevolucionCompra(body = {}) {
+  const resolucion = texto(body.resolucion).toLowerCase() === 'ingreso' ? 'ingreso' : 'cxp';
+  const observaciones = texto(body.observaciones || body.motivo) || null;
+  const lista = Array.isArray(body.items) ? body.items : [];
+
+  if (lista.length === 0) {
+    throw new AppError('Indique al menos un producto a devolver.', 400);
+  }
+
+  const mapa = new Map();
+  lista.forEach((it, idx) => {
+    const id_producto = Number(it.id_producto);
+    const cantidad = Number(it.cantidad);
+    if (!Number.isInteger(id_producto) || id_producto <= 0) {
+      throw new AppError(`El producto en la línea ${idx + 1} no es válido.`, 400);
+    }
+    if (!Number.isFinite(cantidad) || cantidad <= 0) {
+      throw new AppError(`La cantidad a devolver en la línea ${idx + 1} debe ser mayor a 0.`, 400);
+    }
+    mapa.set(id_producto, Number(((mapa.get(id_producto) || 0) + cantidad).toFixed(4)));
+  });
+
+  const items = [...mapa].map(([id_producto, cantidad]) => ({ id_producto, cantidad }));
+
+  return { resolucion, observaciones, items };
+}

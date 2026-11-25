@@ -23,6 +23,7 @@ import { errorHandler } from './utils/http.js';
 import cuentasPorCobrarRoutes from './routes/cuentasPorCobrarRoutes.js';
 import ventaRoutes from './routes/ventaRoutes.js';
 import compraRoutes from './routes/compraRoutes.js';
+import dashboardRoutes from './routes/dashboardRoutes.js';
 
 dotenv.config();
 
@@ -210,6 +211,7 @@ app.use('/api/notificaciones', notificacionesRoutes);
 app.use('/api/cxc', cuentasPorCobrarRoutes);
 app.use('/api/ventas', ventaRoutes);
 app.use('/api/compras', compraRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // Rutas API no encontradas
 app.use((req, res, next) => {
