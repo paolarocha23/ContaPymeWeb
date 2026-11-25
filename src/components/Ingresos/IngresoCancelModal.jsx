@@ -58,11 +58,6 @@ export default function IngresoCancelModal({
 
           <div className="ing-actions ing-actions-center">
             <button type="button" className="btn btn-outline" onClick={onClose}>Entendido</button>
-            {!cancelado && (
-              <button type="button" className="btn btn-primary" onClick={onIrVenta}>
-                <ExternalLink size={16} /> {folio ? `Ir a la venta ${folio}` : 'Ir a ventas'}
-              </button>
-            )}
           </div>
         </div>
       </div>

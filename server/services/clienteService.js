@@ -21,17 +21,22 @@ export async function historial(idParam) {
   const { ventas, cobros } = await repo.historial(cliente.id_cliente);
 
   const totalVentas = ventas
-    .filter((v) => v.estatus !== 'cancelada')
-    .reduce((s, v) => s + Number(v.total), 0);
-  const totalCobrado = cobros.reduce((s, c) => s + Number(c.monto), 0);
+    .filter((v) => String(v.estatus).toLowerCase() !== 'cancelada')
+    .reduce((s, v) => s + Number(v.total || 0), 0);
+
+  const totalCobrado = ventas
+    .filter((v) => String(v.estatus).toLowerCase() !== 'cancelada')
+    .reduce((s, v) => s + Number(v.monto_pagado || 0), 0);
+
+  const saldoPendiente = Math.max(0, Math.round((totalVentas - totalCobrado) * 100) / 100);
 
   return {
     ventas,
     cobros,
     resumen: {
-      total_ventas: totalVentas,
-      total_cobrado: totalCobrado,
-      saldo_pendiente: totalVentas - totalCobrado
+      total_ventas: Math.round(totalVentas * 100) / 100,
+      total_cobrado: Math.round(totalCobrado * 100) / 100,
+      saldo_pendiente: saldoPendiente
     }
   };
 }

@@ -181,6 +181,7 @@ export default function CuentasPorPagarView() {
             setMensajeExito('El pago se registró correctamente.');
             setModalActivo(null);
             setCuentaSeleccionada(null);
+            window.dispatchEvent(new CustomEvent('contapyme_operacion_registrada'));
             await recargar();
         } catch (error) {
             setErrorModal(

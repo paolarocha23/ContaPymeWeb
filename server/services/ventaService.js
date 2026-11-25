@@ -64,6 +64,8 @@ export async function crear(body, idUsuario, empresaId = null) {
       const esFisico = String(producto.tipo).toLowerCase() === 'producto';
       const procesado = {
         id_producto: item.id_producto,
+        id_categoria: producto.id_categoria,
+        nombre_producto: producto.nombre,
         cantidad: item.cantidad,
         precio_unitario: precio,
         subtotal: subtotalItem,
@@ -157,7 +159,14 @@ export async function crear(body, idUsuario, empresaId = null) {
 
     // RDF0905
     if (montoPagado > 0) {
-      const idCategoria = await repo.obtenerCategoriaVentas(client, empresa);
+      const primerServicio = itemsProcesados.find((it) => !it.esFisico);
+      const tieneServicio = Boolean(primerServicio);
+      const idCatProd = primerServicio ? primerServicio.id_categoria : itemsProcesados[0]?.id_categoria;
+      const idCategoria = await repo.obtenerCategoriaVentas(client, {
+        empresaId: empresa,
+        esServicio: tieneServicio,
+        idCategoriaProducto: idCatProd
+      });
       await ingresoService.registrarAutomatico(client, {
         concepto: `Venta folio ${codigo}`,
         id_categoria: idCategoria,
@@ -249,6 +258,18 @@ export async function devolver(idParam, body = {}, idUsuario, empresaId = null) 
       throw new AppError('No se puede devolver una venta cancelada.', 409);
     }
 
+    // Regla de negocio: Plazo máximo de 7 días naturales a partir de la fecha de venta
+    if (venta.fecha) {
+      const diffMs = Date.now() - new Date(venta.fecha).getTime();
+      const diffDias = diffMs / (1000 * 60 * 60 * 24);
+      if (diffDias > 7.001) {
+        throw new AppError(
+          'El plazo máximo para aceptar devoluciones es de 7 días naturales a partir de la fecha de venta.',
+          400
+        );
+      }
+    }
+
     const disponibles = await repo.itemsDevolubles(client, id);
     let lineas;
 
@@ -269,6 +290,17 @@ export async function devolver(idParam, body = {}, idUsuario, empresaId = null) 
     }
 
     if (lineas.length === 0) throw new AppError('No hay artículos pendientes por devolver en esta venta.', 409);
+
+    // Regla de negocio: La devolución aplica a productos físicos, no a servicios
+    for (const l of lineas) {
+      const tipo = String(l.tipo || l.tipo_producto || '').toLowerCase();
+      if (tipo === 'servicio') {
+        throw new AppError(
+          `Los servicios no pueden devolverse mediante este módulo ("${l.nombre}"). Si no se ha realizado, utilice la cancelación de la venta.`,
+          400
+        );
+      }
+    }
 
     const devueltoAhora = new Map(lineas.map((l) => [l.id_producto, l.cantidad]));
     const todoDevuelto = disponibles.every(
@@ -321,13 +353,6 @@ export async function devolver(idParam, body = {}, idUsuario, empresaId = null) 
     const saldo = redondear(Math.max(0, neto - nuevoPagado));
 
     if (reembolso > 0) {
-      // Salida de dinero (egreso de caja). Requiere implementarse en ingresoService.
-      if (typeof ingresoService.registrarReembolsoVenta !== 'function') {
-        throw new AppError(
-          'Falta implementar ingresoService.registrarReembolsoVenta para registrar la salida de dinero de la devolución.',
-          501
-        );
-      }
       await ingresoService.registrarReembolsoVenta(client, {
         concepto: `Devolución de venta folio ${venta.codigo}`,
         monto: reembolso,

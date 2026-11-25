@@ -433,7 +433,6 @@ export default function CuentasPorCobrarView() {
                   >
                     <option value="efectivo">Efectivo</option>
                     <option value="tarjeta">Tarjeta</option>
-                    <option value="transfer">Transferencia</option>
                   </select>
 
                   <label htmlFor="cxc-observaciones">Observaciones</label>

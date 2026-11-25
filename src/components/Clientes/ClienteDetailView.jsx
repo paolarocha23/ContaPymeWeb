@@ -246,45 +246,6 @@ export default function ClienteDetailView({ cliente: c, onBack, onEdit, onToggle
               )}
             </div>
           </div>
-
-          {/* Card 2: Últimos cobros (se muestra siempre como en Image 5 cuando hay cobros o cuando tab es ventas) */}
-          {tab === 'ventas' && historial && cobros.length > 0 && (
-            <div className="content-box" style={{ padding: 0, marginBottom: 0, overflow: 'hidden' }}>
-              <div className="cli-tabs-bar" style={{ padding: '16px 22px' }}>
-                <h4 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#0B132B', margin: 0 }}>
-                  Últimos cobros
-                </h4>
-                <span style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>
-                  {cobros.length} de {cobros.length} cobros
-                </span>
-              </div>
-
-              <div className="table-container-clean">
-                <table className="table-clean">
-                  <thead>
-                    <tr>
-                      <th>FOLIO</th>
-                      <th>FECHA</th>
-                      <th>MONTO</th>
-                      <th>MÉTODO</th>
-                      <th>VENTA</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {cobros.slice(0, 5).map((x) => (
-                      <tr key={x.folio}>
-                        <td style={{ color: '#142A95', fontWeight: 700 }}>{x.folio}</td>
-                        <td>{x.fecha}</td>
-                        <td style={{ fontWeight: 700 }}>{dinero(x.monto)}</td>
-                        <td>{x.metodo}</td>
-                        <td style={{ color: '#6B7280' }}>{x.venta}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

@@ -40,33 +40,33 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
     )
     SELECT
       -- Ventas
-      COALESCE((SELECT SUM(total) FROM ventas WHERE estatus != 'Cancelada' AND fecha >= cm.start_cur AND fecha < cm.end_cur AND ($1::int IS NULL OR empresa_id = $1)), 0) AS ventas_monto,
-      COALESCE((SELECT COUNT(*) FROM ventas WHERE estatus != 'Cancelada' AND fecha >= cm.start_cur AND fecha < cm.end_cur AND ($1::int IS NULL OR empresa_id = $1)), 0) AS ventas_cantidad,
-      COALESCE((SELECT SUM(total) FROM ventas WHERE estatus != 'Cancelada' AND fecha >= cm.start_prev AND fecha < cm.end_prev AND ($1::int IS NULL OR empresa_id = $1)), 0) AS ventas_monto_prev,
+      COALESCE((SELECT SUM(total) FROM ventas WHERE LOWER(estatus) != 'cancelada' AND fecha >= cm.start_cur AND fecha < cm.end_cur AND ($1::int IS NULL OR empresa_id = $1 OR empresa_id IS NULL)), 0) AS ventas_monto,
+      COALESCE((SELECT COUNT(*) FROM ventas WHERE LOWER(estatus) != 'cancelada' AND fecha >= cm.start_cur AND fecha < cm.end_cur AND ($1::int IS NULL OR empresa_id = $1 OR empresa_id IS NULL)), 0) AS ventas_cantidad,
+      COALESCE((SELECT SUM(total) FROM ventas WHERE LOWER(estatus) != 'cancelada' AND fecha >= cm.start_prev AND fecha < cm.end_prev AND ($1::int IS NULL OR empresa_id = $1 OR empresa_id IS NULL)), 0) AS ventas_monto_prev,
       
       -- Compras
-      COALESCE((SELECT SUM(total) FROM compras WHERE estatus != 'cancelada' AND fecha >= cm.start_cur AND fecha < cm.end_cur AND ($1::int IS NULL OR empresa_id = $1)), 0) AS compras_monto,
-      COALESCE((SELECT COUNT(*) FROM compras WHERE estatus != 'cancelada' AND fecha >= cm.start_cur AND fecha < cm.end_cur AND ($1::int IS NULL OR empresa_id = $1)), 0) AS compras_cantidad,
-      COALESCE((SELECT SUM(total) FROM compras WHERE estatus != 'cancelada' AND fecha >= cm.start_prev AND fecha < cm.end_prev AND ($1::int IS NULL OR empresa_id = $1)), 0) AS compras_monto_prev,
+      COALESCE((SELECT SUM(total) FROM compras WHERE LOWER(estatus) != 'cancelada' AND fecha >= cm.start_cur AND fecha < cm.end_cur AND ($1::int IS NULL OR empresa_id = $1 OR empresa_id IS NULL)), 0) AS compras_monto,
+      COALESCE((SELECT COUNT(*) FROM compras WHERE LOWER(estatus) != 'cancelada' AND fecha >= cm.start_cur AND fecha < cm.end_cur AND ($1::int IS NULL OR empresa_id = $1 OR empresa_id IS NULL)), 0) AS compras_cantidad,
+      COALESCE((SELECT SUM(total) FROM compras WHERE LOWER(estatus) != 'cancelada' AND fecha >= cm.start_prev AND fecha < cm.end_prev AND ($1::int IS NULL OR empresa_id = $1 OR empresa_id IS NULL)), 0) AS compras_monto_prev,
 
       -- Gastos
-      COALESCE((SELECT SUM(monto) FROM gastos WHERE estatus = 'activo' AND fecha >= cm.start_cur AND fecha < cm.end_cur AND ($1::int IS NULL OR empresa_id = $1)), 0) AS gastos_monto,
-      COALESCE((SELECT COUNT(*) FROM gastos WHERE estatus = 'activo' AND fecha >= cm.start_cur AND fecha < cm.end_cur AND ($1::int IS NULL OR empresa_id = $1)), 0) AS gastos_cantidad,
-      COALESCE((SELECT SUM(monto) FROM gastos WHERE estatus = 'activo' AND fecha >= cm.start_prev AND fecha < cm.end_prev AND ($1::int IS NULL OR empresa_id = $1)), 0) AS gastos_monto_prev,
+      COALESCE((SELECT SUM(monto) FROM gastos WHERE LOWER(estatus) = 'activo' AND fecha >= cm.start_cur AND fecha < cm.end_cur AND ($1::int IS NULL OR empresa_id = $1 OR empresa_id IS NULL)), 0) AS gastos_monto,
+      COALESCE((SELECT COUNT(*) FROM gastos WHERE LOWER(estatus) = 'activo' AND fecha >= cm.start_cur AND fecha < cm.end_cur AND ($1::int IS NULL OR empresa_id = $1 OR empresa_id IS NULL)), 0) AS gastos_cantidad,
+      COALESCE((SELECT SUM(monto) FROM gastos WHERE LOWER(estatus) = 'activo' AND fecha >= cm.start_prev AND fecha < cm.end_prev AND ($1::int IS NULL OR empresa_id = $1 OR empresa_id IS NULL)), 0) AS gastos_monto_prev,
 
       -- Ingresos
-      COALESCE((SELECT SUM(monto) FROM ingresos WHERE estatus = 'activo' AND fecha >= cm.start_cur AND fecha < cm.end_cur AND ($1::int IS NULL OR empresa_id = $1)), 0) AS ingresos_monto,
-      COALESCE((SELECT COUNT(*) FROM ingresos WHERE estatus = 'activo' AND fecha >= cm.start_cur AND fecha < cm.end_cur AND ($1::int IS NULL OR empresa_id = $1)), 0) AS ingresos_cantidad,
-      COALESCE((SELECT SUM(monto) FROM ingresos WHERE estatus = 'activo' AND fecha >= cm.start_prev AND fecha < cm.end_prev AND ($1::int IS NULL OR empresa_id = $1)), 0) AS ingresos_monto_prev
+      COALESCE((SELECT SUM(monto) FROM ingresos WHERE LOWER(estatus) = 'activo' AND fecha >= cm.start_cur AND fecha < cm.end_cur AND ($1::int IS NULL OR empresa_id = $1 OR empresa_id IS NULL)), 0) AS ingresos_monto,
+      COALESCE((SELECT COUNT(*) FROM ingresos WHERE LOWER(estatus) = 'activo' AND fecha >= cm.start_cur AND fecha < cm.end_cur AND ($1::int IS NULL OR empresa_id = $1 OR empresa_id IS NULL)), 0) AS ingresos_cantidad,
+      COALESCE((SELECT SUM(monto) FROM ingresos WHERE LOWER(estatus) = 'activo' AND fecha >= cm.start_prev AND fecha < cm.end_prev AND ($1::int IS NULL OR empresa_id = $1 OR empresa_id IS NULL)), 0) AS ingresos_monto_prev
     FROM current_month cm
   `;
 
-  // 2. Gráfica semestral (últimos 6 meses)
+  // 2. Gráfica anual (últimos 12 meses)
   const chart6mSql = `
     WITH meses AS (
       SELECT 
         generate_series(
-          date_trunc('month', CURRENT_DATE) - interval '5 months',
+          date_trunc('month', CURRENT_DATE) - interval '11 months',
           date_trunc('month', CURRENT_DATE),
           interval '1 month'
         ) AS mes_inicio
@@ -76,24 +76,24 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
       TO_CHAR(m.mes_inicio, 'YYYY-MM') AS periodo,
       COALESCE((
         SELECT SUM(total) FROM ventas 
-        WHERE estatus != 'Cancelada' 
+        WHERE LOWER(estatus) != 'cancelada' 
           AND fecha >= m.mes_inicio 
           AND fecha < m.mes_inicio + interval '1 month'
-          AND ($1::int IS NULL OR empresa_id = $1)
+          AND ($1::int IS NULL OR empresa_id = $1 OR empresa_id IS NULL)
       ), 0) AS ventas,
       COALESCE((
         SELECT SUM(monto) FROM ingresos 
-        WHERE estatus = 'activo' 
+        WHERE LOWER(estatus) = 'activo' 
           AND fecha >= m.mes_inicio 
           AND fecha < m.mes_inicio + interval '1 month'
-          AND ($1::int IS NULL OR empresa_id = $1)
+          AND ($1::int IS NULL OR empresa_id = $1 OR empresa_id IS NULL)
       ), 0) AS ingresos,
       COALESCE((
         SELECT SUM(monto) FROM gastos 
-        WHERE estatus = 'activo' 
+        WHERE LOWER(estatus) = 'activo' 
           AND fecha >= m.mes_inicio 
           AND fecha < m.mes_inicio + interval '1 month'
-          AND ($1::int IS NULL OR empresa_id = $1)
+          AND ($1::int IS NULL OR empresa_id = $1 OR empresa_id IS NULL)
       ), 0) AS gastos
     FROM meses m
     ORDER BY m.mes_inicio ASC
@@ -107,7 +107,7 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
       COUNT(*) FILTER (WHERE stock <= stock_minimo AND stock > 0)::int AS bajo,
       COUNT(*) FILTER (WHERE stock <= 0)::int AS agotado
     FROM productos
-    WHERE estatus = 1 AND tipo = 'producto' AND ($1::int IS NULL OR empresa_id = $1)
+    WHERE estatus = 1 AND tipo = 'producto' AND ($1::int IS NULL OR empresa_id = $1 OR empresa_id IS NULL)
   `;
 
   // 4. Ventas hoy y últimos 7 días
@@ -116,7 +116,7 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
       COALESCE(SUM(total), 0) AS monto_hoy,
       COUNT(*)::int AS cantidad_hoy
     FROM ventas
-    WHERE estatus != 'Cancelada' AND fecha::date = CURRENT_DATE AND ($1::int IS NULL OR empresa_id = $1)
+    WHERE LOWER(estatus) != 'cancelada' AND fecha::date = CURRENT_DATE AND ($1::int IS NULL OR empresa_id = $1 OR empresa_id IS NULL)
   `;
 
   const daysSql = `
@@ -142,15 +142,15 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
       (d.dia = CURRENT_DATE) AS es_hoy,
       COALESCE((
         SELECT SUM(total) FROM ventas
-        WHERE estatus != 'Cancelada'
+        WHERE LOWER(estatus) != 'cancelada'
           AND fecha::date = d.dia
-          AND ($1::int IS NULL OR empresa_id = $1)
+          AND ($1::int IS NULL OR empresa_id = $1 OR empresa_id IS NULL)
       ), 0) AS total_dia,
       COALESCE((
         SELECT COUNT(*) FROM ventas
-        WHERE estatus != 'Cancelada'
+        WHERE LOWER(estatus) != 'cancelada'
           AND fecha::date = d.dia
-          AND ($1::int IS NULL OR empresa_id = $1)
+          AND ($1::int IS NULL OR empresa_id = $1 OR empresa_id IS NULL)
       ), 0)::int AS count_dia
     FROM dias d
     ORDER BY d.dia ASC
@@ -159,10 +159,10 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
   // 5. Cuentas por cobrar
   const cxcResumenSql = `
     SELECT
-      COALESCE(SUM(saldo_pendiente) FILTER (WHERE saldo_pendiente > 0 AND estatus NOT IN ('cancelada', 'saldada', 'pagada')), 0) AS saldo_total,
-      COUNT(*) FILTER (WHERE saldo_pendiente > 0 AND fecha_vencimiento < CURRENT_DATE AND estatus NOT IN ('cancelada', 'saldada', 'pagada'))::int AS vencidas_count
+      COALESCE(SUM(saldo_pendiente) FILTER (WHERE saldo_pendiente > 0 AND LOWER(estatus) NOT IN ('cancelada', 'saldada', 'pagada')), 0) AS saldo_total,
+      COUNT(*) FILTER (WHERE saldo_pendiente > 0 AND fecha_vencimiento < CURRENT_DATE AND LOWER(estatus) NOT IN ('cancelada', 'saldada', 'pagada'))::int AS vencidas_count
     FROM cuentas_por_cobrar
-    WHERE ($1::int IS NULL OR empresa_id = $1)
+    WHERE ($1::int IS NULL OR empresa_id = $1 OR empresa_id IS NULL)
   `;
 
   const cxcTopSql = `
@@ -178,8 +178,8 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
       END AS estado
     FROM cuentas_por_cobrar cxc
     JOIN clientes c ON c.id_cliente = cxc.id_cliente
-    WHERE cxc.saldo_pendiente > 0 AND cxc.estatus NOT IN ('cancelada', 'saldada', 'pagada')
-      AND ($1::int IS NULL OR cxc.empresa_id = $1)
+    WHERE cxc.saldo_pendiente > 0 AND LOWER(cxc.estatus) NOT IN ('cancelada', 'saldada', 'pagada')
+      AND ($1::int IS NULL OR cxc.empresa_id = $1 OR cxc.empresa_id IS NULL)
     ORDER BY cxc.fecha_vencimiento ASC, cxc.id_cxc DESC
     LIMIT 5
   `;
@@ -187,10 +187,10 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
   // 6. Cuentas por pagar
   const cxpResumenSql = `
     SELECT
-      COALESCE(SUM(saldo_pendiente) FILTER (WHERE saldo_pendiente > 0 AND estatus NOT IN ('cancelada', 'saldada', 'pagada')), 0) AS saldo_total,
-      COUNT(*) FILTER (WHERE saldo_pendiente > 0 AND fecha_vencimiento < CURRENT_DATE AND estatus NOT IN ('cancelada', 'saldada', 'pagada'))::int AS vencidas_count
+      COALESCE(SUM(saldo_pendiente) FILTER (WHERE saldo_pendiente > 0 AND LOWER(estatus) NOT IN ('cancelada', 'saldada', 'pagada')), 0) AS saldo_total,
+      COUNT(*) FILTER (WHERE saldo_pendiente > 0 AND fecha_vencimiento < CURRENT_DATE AND LOWER(estatus) NOT IN ('cancelada', 'saldada', 'pagada'))::int AS vencidas_count
     FROM cuentas_por_pagar
-    WHERE ($1::int IS NULL OR empresa_id = $1)
+    WHERE ($1::int IS NULL OR empresa_id = $1 OR empresa_id IS NULL)
   `;
 
   const cxpTopSql = `
@@ -206,8 +206,8 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
       END AS estado
     FROM cuentas_por_pagar cxp
     JOIN proveedores p ON p.id_proveedor = cxp.id_proveedor
-    WHERE cxp.saldo_pendiente > 0 AND cxp.estatus NOT IN ('cancelada', 'saldada', 'pagada')
-      AND ($1::int IS NULL OR cxp.empresa_id = $1)
+    WHERE cxp.saldo_pendiente > 0 AND LOWER(cxp.estatus) NOT IN ('cancelada', 'saldada', 'pagada')
+      AND ($1::int IS NULL OR cxp.empresa_id = $1 OR cxp.empresa_id IS NULL)
     ORDER BY cxp.fecha_vencimiento ASC, cxp.id_cxp DESC
     LIMIT 5
   `;
@@ -217,7 +217,7 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
     SELECT id_producto, nombre, stock, stock_minimo, unidad_medida
     FROM productos
     WHERE estatus = 1 AND tipo = 'producto' AND stock <= stock_minimo AND stock > 0
-      AND ($1::int IS NULL OR empresa_id = $1)
+      AND ($1::int IS NULL OR empresa_id = $1 OR empresa_id IS NULL)
     ORDER BY stock ASC
     LIMIT 6
   `;
@@ -226,7 +226,7 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
     SELECT id_producto, nombre, stock, unidad_medida
     FROM productos
     WHERE estatus = 1 AND tipo = 'producto' AND stock <= 0
-      AND ($1::int IS NULL OR empresa_id = $1)
+      AND ($1::int IS NULL OR empresa_id = $1 OR empresa_id IS NULL)
     ORDER BY nombre ASC
     LIMIT 6
   `;

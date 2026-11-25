@@ -2,7 +2,7 @@ import pool from '../config/db.js';
 
 const COLUMNAS = `
   i.id_ingreso,
-  i.fecha,
+  TO_CHAR(i.fecha - INTERVAL '6 hours', 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha,
   i.concepto,
   i.id_categoria,
   c.nombre AS nombre_categoria,
@@ -70,8 +70,8 @@ export async function list({ q, desde, hasta, id_categoria, origen, forma_pago, 
       OR ('ING-' || LPAD(i.id_ingreso::text, 4, '0')) ILIKE ${p})`;
   }
 
-  if (desde) where += ` AND i.fecha >= ${add(desde)}::date`;
-  if (hasta) where += ` AND i.fecha < (${add(hasta)}::date + 1)`;
+  if (desde) where += ` AND (i.fecha - INTERVAL '6 hours')::date >= ${add(desde)}::date`;
+  if (hasta) where += ` AND (i.fecha - INTERVAL '6 hours')::date <= ${add(hasta)}::date`;
   if (id_categoria !== undefined) where += ` AND i.id_categoria = ${add(id_categoria)}`;
   if (origen) where += ` AND i.origen = ${add(origen)}`;
   if (forma_pago) where += ` AND i.forma_pago = ${add(forma_pago)}`;
@@ -272,7 +272,7 @@ export async function ventaRelacionada(ingreso) {
 // Historial de caja del ingreso (incluye reversas por cancelación o corrección)
 export async function movimientosCaja(id_ingreso) {
   const { rows } = await pool.query(`
-    SELECT id_movimiento, fecha, tipo, concepto, monto, origen
+    SELECT id_movimiento, TO_CHAR(fecha - INTERVAL '6 hours', 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha, tipo, concepto, monto, origen
     FROM movimientos_caja
     WHERE origen = 'ingreso' AND id_referencia = $1
     ORDER BY fecha ASC, id_movimiento ASC
@@ -284,7 +284,7 @@ export async function movimientosCaja(id_ingreso) {
 // "Ingresos de esta venta": el de la venta y los de sus cobros
 export async function ingresosDeVenta(id_venta) {
   const { rows } = await pool.query(`
-    SELECT i.id_ingreso, i.fecha, i.forma_pago, i.monto, i.origen, i.estatus
+    SELECT i.id_ingreso, TO_CHAR(i.fecha - INTERVAL '6 hours', 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha, i.forma_pago, i.monto, i.origen, i.estatus
     FROM ingresos i
     WHERE i.id_venta = $1
        OR i.id_cobro IN (

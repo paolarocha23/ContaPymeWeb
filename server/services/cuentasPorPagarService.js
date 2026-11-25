@@ -212,9 +212,9 @@ export const registrarPago = async (idCxp, datos, idUsuario, empresaId = null) =
         // Solo los pagos en efectivo afectan Caja (RDF1502 / RF13).
         let movimientoCaja = null;
 
-        if (datos.forma_pago === 'efectivo') {
+        if (String(datos.forma_pago || '').trim().toLowerCase() === 'efectivo') {
             movimientoCaja = await registrarMovimientoCaja({
-                fecha: pago.fecha,
+                fecha: datos.fecha || null,
                 tipo: 'salida',
                 concepto: conceptoGasto,
                 monto: pago.monto,

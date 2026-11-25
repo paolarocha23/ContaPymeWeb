@@ -19,6 +19,7 @@ export default function Layout({
         user={user}
         title={pageTitle}
         subtitle={subtitle}
+        onNavigate={onNavigate}
         onOpenChangePassword={onOpenChangePassword}
         onManualLogout={onManualLogout}
       />

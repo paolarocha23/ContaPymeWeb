@@ -84,12 +84,12 @@ export async function list(filtros = {}, empresaId = null) {
 
   if (filtros.desde) {
     params.push(filtros.desde);
-    condiciones.push(`c.fecha::date >= $${params.length}::date`);
+    condiciones.push(`(c.fecha - INTERVAL '6 hours')::date >= $${params.length}::date`);
   }
 
   if (filtros.hasta) {
     params.push(filtros.hasta);
-    condiciones.push(`c.fecha::date <= $${params.length}::date`);
+    condiciones.push(`(c.fecha - INTERVAL '6 hours')::date <= $${params.length}::date`);
   }
 
   if (filtros.id_proveedor) {
@@ -117,7 +117,7 @@ export async function list(filtros = {}, empresaId = null) {
     SELECT
       c.id_compra,
       c.codigo,
-      c.fecha,
+      TO_CHAR(c.fecha - INTERVAL '6 hours', 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha,
       c.id_proveedor,
       p.nombre_empresa AS proveedor_nombre,
       p.telefono AS proveedor_telefono,
@@ -212,7 +212,7 @@ export async function findById(idCompra, empresaId = null, db = pool) {
     SELECT
       c.id_compra,
       c.codigo,
-      c.fecha,
+      TO_CHAR(c.fecha - INTERVAL '6 hours', 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha,
       c.id_proveedor,
       p.nombre_empresa AS proveedor_nombre,
       p.telefono AS proveedor_telefono,

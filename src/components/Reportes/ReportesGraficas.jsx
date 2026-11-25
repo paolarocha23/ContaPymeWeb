@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
     ResponsiveContainer,
     BarChart,
@@ -9,227 +9,142 @@ import {
     CartesianGrid,
     Tooltip
 } from 'recharts';
+import { formatoMoneda, formatoNumero } from './reportesAnalisis';
 
-const formatoMoneda = (valor) =>
-    new Intl.NumberFormat('es-MX', {
-        style: 'currency',
-        currency: 'MXN'
-    }).format(Number(valor || 0));
-
-const formatoCompacto = (valor) =>
-    new Intl.NumberFormat('es-MX', {
-        notation: 'compact',
-        maximumFractionDigits: 1
-    }).format(Number(valor || 0));
-
-const colores = {
-    ventas: '#183b9c',
-    compras: '#64748b',
-    ingresos: '#16a34a',
-    gastos: '#dc2626',
-    cobrar: '#2563eb',
-    pagar: '#f59e0b'
+const formatoEje = (valor, esMoneda) => {
+    const n = Number(valor || 0);
+    const texto = Math.abs(n) >= 1000 ? `${+(n / 1000).toFixed(1)}k` : String(n);
+    return esMoneda ? `$${texto}` : texto;
 };
 
-function GraficaComparativa({ titulo, descripcion, datos }) {
+function TooltipPill({ active, payload, esMoneda }) {
+    if (!active || !payload || !payload.length) return null;
+    const punto = payload[0].payload;
+
     return (
-        <div className="content-box" style={{ minWidth: 0 }}>
-            <h3 style={{ fontSize: '1rem', marginBottom: 6 }}>
-                {titulo}
-            </h3>
-
-            <p
-                style={{
-                    color: '#64748b',
-                    fontSize: '0.85rem',
-                    marginBottom: 20
-                }}
-            >
-                {descripcion}
-            </p>
-
-            <div style={{ width: '100%', height: 280 }}>
-                <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                        data={datos}
-                        margin={{
-                            top: 10,
-                            right: 12,
-                            left: 0,
-                            bottom: 5
-                        }}
-                    >
-                        <CartesianGrid
-                            strokeDasharray="3 3"
-                            vertical={false}
-                            stroke="#e2e8f0"
-                        />
-
-                        <XAxis
-                            dataKey="nombre"
-                            tick={{ fontSize: 12 }}
-                            axisLine={false}
-                            tickLine={false}
-                        />
-
-                        <YAxis
-                            tickFormatter={formatoCompacto}
-                            tick={{ fontSize: 11 }}
-                            axisLine={false}
-                            tickLine={false}
-                            width={55}
-                        />
-
-                        <Tooltip
-                            formatter={(valor) => formatoMoneda(valor)}
-                            contentStyle={{
-                                borderRadius: 10,
-                                border: '1px solid #e2e8f0'
-                            }}
-                        />
-
-                        <Bar
-                            dataKey="monto"
-                            name="Monto (MXN)"
-                            radius={[6, 6, 0, 0]}
-                            maxBarSize={85}
-                            isAnimationActive={false}
-                        >
-                            {datos.map((item) => (
-                                <Cell
-                                    key={item.nombre}
-                                    fill={item.color}
-                                />
-                            ))}
-                        </Bar>
-                    </BarChart>
-                </ResponsiveContainer>
-            </div>
-
-            <div
-                style={{
-                    display: 'flex',
-                    flexWrap: 'wrap',
-                    gap: 16,
-                    marginTop: 12
-                }}
-            >
-                {datos.map((item) => (
-                    <div key={item.nombre}>
-                        <span
-                            style={{
-                                display: 'inline-block',
-                                width: 10,
-                                height: 10,
-                                borderRadius: 3,
-                                backgroundColor: item.color,
-                                marginRight: 6
-                            }}
-                        />
-
-                        <span style={{ fontSize: '0.82rem' }}>
-                            {item.nombre}: {formatoMoneda(item.monto)}
-                        </span>
-                    </div>
-                ))}
-            </div>
+        <div className="rep-tip">
+            {punto.etiquetaLarga} · {esMoneda ? formatoMoneda(punto.valor) : formatoNumero(punto.valor)}
         </div>
     );
 }
 
-export default function ReportesGraficas({ reportes }) {
-    if (!reportes) return null;
+function GraficaBarras({ titulo, subtitulo, serie, esMoneda }) {
+    const [activo, setActivo] = useState(null);
 
-    const ventasCompras = [
-        {
-            nombre: 'Ventas',
-            monto: Number(reportes.ventas.monto_total || 0),
-            color: colores.ventas
-        },
-        {
-            nombre: 'Compras',
-            monto: Number(reportes.compras.monto_total || 0),
-            color: colores.compras
-        }
-    ];
+    useEffect(() => {
+        setActivo(null);
+    }, [serie]);
 
-    const ingresosGastos = [
-        {
-            nombre: 'Ingresos',
-            monto: Number(reportes.ingresos.monto_total || 0),
-            color: colores.ingresos
-        },
-        {
-            nombre: 'Gastos',
-            monto: Number(reportes.gastos.monto_total || 0),
-            color: colores.gastos
-        }
-    ];
+    const indiceMax = useMemo(() => {
+        let max = -1;
+        let idx = -1;
+        serie.forEach((p, i) => {
+            if (p.valor > max) {
+                max = p.valor;
+                idx = i;
+            }
+        });
+        return idx;
+    }, [serie]);
 
-    const cuentasPendientes = [
-        {
-            nombre: 'Por cobrar',
-            monto: Number(
-                reportes.cuentas_por_cobrar.saldo_pendiente || 0
-            ),
-            color: colores.cobrar
-        },
-        {
-            nombre: 'Por pagar',
-            monto: Number(
-                reportes.cuentas_por_pagar.saldo_pendiente || 0
-            ),
-            color: colores.pagar
-        }
-    ];
+    const indiceActivo = activo ?? indiceMax;
+    const sinDatos = serie.length === 0 || serie.every((p) => !p.valor);
 
     return (
-        <div style={{ marginTop: 28 }}>
-            <h3
-                style={{
-                    fontSize: '1.1rem',
-                    marginBottom: 4
-                }}
-            >
-                Gráficas de reportes
-            </h3>
+        <div className="rep-card rep-chart">
+            <h3>{titulo}</h3>
+            <p className="rep-card-sub">{subtitulo}</p>
 
-            <p
-                style={{
-                    color: '#64748b',
-                    fontSize: '0.85rem',
-                    marginBottom: 18
-                }}
-            >
-                Comparación visual de los indicadores financieros.
-            </p>
+            {sinDatos ? (
+                <div className="rep-empty-chart">No hay datos para mostrar en este periodo.</div>
+            ) : (
+                <div className="rep-chart-box">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={serie} margin={{ top: 28, right: 8, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E4E8F5" />
 
-            <div
-                style={{
-                    display: 'grid',
-                    gridTemplateColumns:
-                        'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
-                    gap: 20
-                }}
-            >
-                <GraficaComparativa
-                    titulo="Ventas y compras"
-                    descripcion="Importes registrados en el periodo seleccionado."
-                    datos={ventasCompras}
-                />
+                            <XAxis
+                                dataKey="etiqueta"
+                                tick={{ fontSize: 11, fill: '#6B7280', fontWeight: 600 }}
+                                axisLine={false}
+                                tickLine={false}
+                                interval={serie.length > 16 ? 1 : 0}
+                            />
 
-                <GraficaComparativa
-                    titulo="Ingresos y gastos"
-                    descripcion="Movimientos registrados en el periodo seleccionado."
-                    datos={ingresosGastos}
-                />
+                            <YAxis
+                                tickFormatter={(v) => formatoEje(v, esMoneda)}
+                                tick={{ fontSize: 11, fill: '#9AA1B8', fontWeight: 600 }}
+                                axisLine={false}
+                                tickLine={false}
+                                width={48}
+                            />
 
-                <GraficaComparativa
-                    titulo="Cuentas por cobrar y pagar"
-                    descripcion="Saldos pendientes actuales, sin filtro de fechas."
-                    datos={cuentasPendientes}
-                />
-            </div>
+                            <Tooltip
+                                cursor={false}
+                                content={<TooltipPill esMoneda={esMoneda} />}
+                                wrapperStyle={{ outline: 'none' }}
+                            />
+
+                            <Bar
+                                dataKey="valor"
+                                radius={[8, 8, 8, 8]}
+                                maxBarSize={26}
+                                isAnimationActive={false}
+                                onMouseEnter={(_, i) => setActivo(i)}
+                                onMouseLeave={() => setActivo(null)}
+                            >
+                                {serie.map((p, i) => (
+                                    <Cell
+                                        key={`${p.etiquetaLarga}-${i}`}
+                                        fill={i === indiceActivo ? '#142A95' : '#D5DBF7'}
+                                    />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+            )}
+        </div>
+    );
+}
+
+function PanelRanking({ titulo, subtitulo, items }) {
+    const max = Math.max(...items.map((i) => i.valor), 0);
+
+    return (
+        <div className="rep-card rep-rank">
+            <h3>{titulo}</h3>
+            <p className="rep-card-sub">{subtitulo}</p>
+
+            {items.length === 0 || max === 0 ? (
+                <div className="rep-empty-chart">Sin datos en este periodo.</div>
+            ) : (
+                <div className="rep-rank-list">
+                    {items.map((item) => (
+                        <div key={item.label} className="rep-rank-item">
+                            <div className="rep-rank-head">
+                                <span>{item.label}</span>
+                                <b>{item.texto}</b>
+                            </div>
+                            <div className="rep-rank-track">
+                                <div
+                                    className="rep-rank-fill"
+                                    style={{ width: `${Math.max((item.valor / max) * 100, 3)}%` }}
+                                />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+export default function ReportesGraficas({ grafica, ranking }) {
+    return (
+        <div className="rep-grid-charts">
+            <GraficaBarras {...grafica} />
+            <PanelRanking {...ranking} />
         </div>
     );
 }

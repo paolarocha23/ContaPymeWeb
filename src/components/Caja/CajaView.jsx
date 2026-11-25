@@ -1,84 +1,54 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  Wallet, ArrowDownToLine, ArrowUpFromLine, List, Search, ChevronDown, Plus, ChevronLeft, ChevronRight, AlertCircle
+} from 'lucide-react';
 import { api } from '../../services/api';
+import ModalEntradaCaja from './ModalEntradaCaja';
+import ModalSalidaCaja from './ModalSalidaCaja';
+import {
+  formatoMoneda, fechaActual, fechaCorta, mesActual, rangoDeMes, capitalizar, nombreUsuarioActual
+} from './cajaUtils';
 import './Caja.css';
 
-const formatoMoneda = (cantidad) =>
-  Number(cantidad || 0).toLocaleString('es-MX', {
-    style: 'currency',
-    currency: 'MXN'
-  });
+const POR_PAGINA = 8;
+const RESUMEN_VACIO = { total_entradas: 0, total_salidas: 0, saldo: 0 };
 
-const fechaActual = () => {
-  const ahora = new Date();
-  const zonaLocal = new Date(
-    ahora.getTime() - ahora.getTimezoneOffset() * 60000
-  );
-
-  return zonaLocal.toISOString().slice(0, 16);
-};
-
-const fechaLegible = (fecha) => {
-  if (!fecha) return '—';
-
-  return new Date(fecha).toLocaleString('es-MX', {
-    dateStyle: 'short',
-    timeStyle: 'short'
-  });
-};
-
-function CajaView() {
+function CajaView({ usuario }) {
   const [movimientos, setMovimientos] = useState([]);
-  const [resumen, setResumen] = useState({
-    total_entradas: 0,
-    total_salidas: 0,
-    saldo: 0
-  });
+  const [resumen, setResumen] = useState(RESUMEN_VACIO);
 
-  const [filtros, setFiltros] = useState({
-    fecha_inicio: '',
-    fecha_fin: '',
-    tipo: '',
-    concepto: ''
-  });
+  // Filtros que viajan al backend (mismos parámetros de antes: fecha_inicio, fecha_fin, tipo, concepto)
+  const [filtros, setFiltros] = useState({ mes: mesActual(), tipo: '', concepto: '' });
+  const [busqueda, setBusqueda] = useState('');
+  const [origen, setOrigen] = useState(''); // filtro local
+  const [pagina, setPagina] = useState(1);
 
-  const [formulario, setFormulario] = useState({
-    fecha: fechaActual(),
-    tipo: 'entrada',
-    concepto: '',
-    monto: ''
-  });
-
+  const [formulario, setFormulario] = useState({ fecha: fechaActual(), tipo: 'entrada', concepto: '', monto: '' });
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [cargando, setCargando] = useState(true);
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const [mensaje, setMensaje] = useState('');
 
+  const nombreUsuario = usuario || nombreUsuarioActual();
+
   const cargarDatos = useCallback(async () => {
     try {
       setCargando(true);
       setError('');
 
+      const { mes, ...resto } = filtros;
       const parametros = Object.fromEntries(
-        Object.entries(filtros).filter(([, valor]) => valor !== '')
+        Object.entries({ ...rangoDeMes(mes), ...resto }).filter(([, v]) => v !== '')
       );
 
-      const [respuestaMovimientos, respuestaResumen] = await Promise.all([
+      const [resMov, resRes] = await Promise.all([
         api.getMovimientosCaja(parametros),
         api.getResumenCaja(parametros)
       ]);
 
-      setMovimientos(
-        respuestaMovimientos.data ?? respuestaMovimientos ?? []
-      );
-
-      setResumen(
-        respuestaResumen.data ?? respuestaResumen ?? {
-          total_entradas: 0,
-          total_salidas: 0,
-          saldo: 0
-        }
-      );
+      setMovimientos(resMov.data ?? resMov ?? []);
+      setResumen(resRes.data ?? resRes ?? RESUMEN_VACIO);
     } catch (err) {
       setError(err.message || 'No se pudieron cargar los movimientos');
     } finally {
@@ -86,62 +56,64 @@ function CajaView() {
     }
   }, [filtros]);
 
+  useEffect(() => { cargarDatos(); }, [cargarDatos]);
+
+  // Actualización automática al registrar compras, cobros, gastos o al volver a la pestaña
   useEffect(() => {
-    cargarDatos();
+    const handleActualizacion = () => cargarDatos();
+    window.addEventListener('contapyme_operacion_registrada', handleActualizacion);
+    window.addEventListener('focus', handleActualizacion);
+    return () => {
+      window.removeEventListener('contapyme_operacion_registrada', handleActualizacion);
+      window.removeEventListener('focus', handleActualizacion);
+    };
   }, [cargarDatos]);
+
+  // Búsqueda con pequeña espera para no consultar en cada tecla
+  useEffect(() => {
+    const t = setTimeout(() => setFiltros((f) => (f.concepto === busqueda ? f : { ...f, concepto: busqueda })), 350);
+    return () => clearTimeout(t);
+  }, [busqueda]);
+
+  useEffect(() => { setPagina(1); }, [filtros, origen]);
 
   const cambiarFiltro = (e) => {
     const { name, value } = e.target;
+    setFiltros((f) => ({ ...f, [name]: value }));
+  };
 
-    setFiltros((anterior) => ({
-      ...anterior,
-      [name]: value
-    }));
+  const limpiarFiltros = () => {
+    setFiltros({ mes: mesActual(), tipo: '', concepto: '' });
+    setBusqueda('');
+    setOrigen('');
   };
 
   const cambiarFormulario = (e) => {
     const { name, value } = e.target;
-
-    setFormulario((anterior) => ({
-      ...anterior,
-      [name]: value
-    }));
-  };
-
-  const limpiarFiltros = () => {
-    setFiltros({
-      fecha_inicio: '',
-      fecha_fin: '',
-      tipo: '',
-      concepto: ''
-    });
+    setFormulario((f) => ({ ...f, [name]: value }));
   };
 
   const abrirFormulario = (tipo) => {
-    setFormulario({
-      fecha: fechaActual(),
-      tipo,
-      concepto: '',
-      monto: ''
-    });
-
+    setFormulario({ fecha: fechaActual(), tipo, concepto: '', monto: '' });
     setMensaje('');
     setError('');
     setMostrarFormulario(true);
   };
 
+  // Cambia entre entrada/salida dentro del modal sin perder lo capturado
+  const cambiarTipo = (tipo) => setFormulario((f) => ({ ...f, tipo }));
+
+  const cerrarFormulario = () => {
+    if (guardando) return;
+    setMostrarFormulario(false);
+    setError('');
+  };
+
   const guardarMovimiento = async (e) => {
     e.preventDefault();
 
-    if (!formulario.concepto.trim()) {
-      setError('Escribe el concepto del movimiento');
-      return;
-    }
-
-    if (!formulario.monto || Number(formulario.monto) <= 0) {
-      setError('El monto debe ser mayor que cero');
-      return;
-    }
+    if (!formulario.concepto.trim()) { setError('Escribe el concepto del movimiento'); return; }
+    if (!formulario.monto || Number(formulario.monto) <= 0) { setError('El monto debe ser mayor que cero'); return; }
 
     try {
       setGuardando(true);
@@ -152,20 +124,16 @@ function CajaView() {
         ...formulario,
         concepto: formulario.concepto.trim(),
         monto: Number(formulario.monto),
-        fecha: formulario.fecha
-          ? formulario.fecha.replace('T', ' ') + ':00'
-          : null
+        fecha: formulario.fecha ? formulario.fecha.replace('T', ' ') + ':00' : null
       };
 
       const respuesta = await api.crearMovimientoCaja(datos);
-
       if (respuesta.success === false) {
         throw new Error(respuesta.message || 'No se pudo registrar el movimiento');
       }
 
       setMostrarFormulario(false);
       setMensaje('Movimiento registrado correctamente');
-
       await cargarDatos();
     } catch (err) {
       setError(err.message || 'Ocurrió un error al registrar el movimiento');
@@ -174,174 +142,141 @@ function CajaView() {
     }
   };
 
+  // ── derivados ──
+  const origenes = useMemo(
+    () => [...new Set(movimientos.map((m) => m.origen).filter(Boolean))],
+    [movimientos]
+  );
+
+  const visibles = useMemo(
+    () => (origen ? movimientos.filter((m) => m.origen === origen) : movimientos),
+    [movimientos, origen]
+  );
+
+  const totalPaginas = Math.max(1, Math.ceil(visibles.length / POR_PAGINA));
+  const paginaActual = Math.min(pagina, totalPaginas);
+  const desde = (paginaActual - 1) * POR_PAGINA;
+  const filas = visibles.slice(desde, desde + POR_PAGINA);
+
+  const etiquetaPeriodo = filtros.mes ? 'del mes' : 'totales';
+  const propsModal = {
+    formulario,
+    onChange: cambiarFormulario,
+    onCambiarTipo: cambiarTipo,
+    onSubmit: guardarMovimiento,
+    onClose: cerrarFormulario,
+    guardando,
+    error,
+    saldoActual: Number(resumen.saldo || 0),
+    usuario: nombreUsuario
+  };
+
   return (
-    <div className="caja-container">
-      <div className="caja-header">
+    <div className="caja">
+      {/* ── Encabezado ── */}
+      <div className="caja-title">
         <div>
-          <h1>Caja / Efectivo</h1>
-          <p>Control de entradas, salidas y saldo disponible.</p>
+          <h2>Caja / Efectivo</h2>
+          <p>Controla las entradas y salidas de efectivo y consulta el saldo disponible en caja.</p>
         </div>
-
-        <button
-          className="caja-btn caja-btn-primary"
-          onClick={() => abrirFormulario('entrada')}
-        >
-           Registrar movimiento
+        <button type="button" className="caja-btn caja-btn-primary" onClick={() => abrirFormulario('entrada')}>
+          <Wallet size={16} /> Registrar movimiento
         </button>
       </div>
 
-      {error && (
-        <div className="caja-alert caja-alert-error">
-          {error}
-        </div>
+      {error && !mostrarFormulario && (
+        <div className="caja-alert err" role="alert"><AlertCircle size={16} /> {error}</div>
       )}
+      {mensaje && <div className="caja-alert ok" role="status">{mensaje}</div>}
 
-      {mensaje && (
-        <div className="caja-alert caja-alert-success">
-          {mensaje}
+      {/* ── Tarjetas de resumen ── */}
+      <div className="caja-stats">
+        <div className="caja-stat">
+          <span className="caja-stat-ico green"><ArrowDownToLine size={20} /></span>
+          <div><small>Entradas {etiquetaPeriodo}</small><strong className="pos">{formatoMoneda(resumen.total_entradas)}</strong></div>
         </div>
-      )}
-
-      <div className="caja-resumen">
-        <div className="caja-card caja-card-saldo">
-          <span>Saldo de Caja</span>
-          <strong>{formatoMoneda(resumen.saldo)}</strong>
-          <small>Resultado del periodo seleccionado</small>
+        <div className="caja-stat">
+          <span className="caja-stat-ico red"><ArrowUpFromLine size={20} /></span>
+          <div><small>Salidas {etiquetaPeriodo}</small><strong className="neg">{formatoMoneda(resumen.total_salidas)}</strong></div>
         </div>
-
-        <div className="caja-card">
-          <span>Total de entradas</span>
-          <strong className="caja-entrada">
-            {formatoMoneda(resumen.total_entradas)}
-          </strong>
-          <small>Dinero recibido</small>
-        </div>
-
-        <div className="caja-card">
-          <span>Total de salidas</span>
-          <strong className="caja-salida">
-            {formatoMoneda(resumen.total_salidas)}
-          </strong>
-          <small>Dinero utilizado</small>
+        <div className="caja-stat">
+          <span className="caja-stat-ico blue"><List size={20} /></span>
+          <div><small>Movimientos {etiquetaPeriodo}</small><strong>{movimientos.length}</strong></div>
         </div>
       </div>
 
-      <div className="caja-acciones">
-        <button
-          className="caja-btn caja-btn-entrada"
-          onClick={() => abrirFormulario('entrada')}
-        >
-          Entrada de efectivo
-        </button>
+      {/* ── Filtros ── */}
+      <div className="caja-filters">
+        <div className="caja-search">
+          <Search size={16} />
+          <input
+            type="text"
+            placeholder="Concepto o referencia..."
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+          />
+        </div>
 
-        <button
-          className="caja-btn caja-btn-salida"
-          onClick={() => abrirFormulario('salida')}
-        >
-           Salida de efectivo
-        </button>
+        <label className="caja-pillsel">
+          <span>Tipo:</span>
+          <select name="tipo" value={filtros.tipo} onChange={cambiarFiltro}>
+            <option value="">Todos</option>
+            <option value="entrada">Entradas</option>
+            <option value="salida">Salidas</option>
+          </select>
+          <ChevronDown size={14} />
+        </label>
+
+        <label className="caja-pillsel">
+          <span>Origen:</span>
+          <select value={origen} onChange={(e) => setOrigen(e.target.value)}>
+            <option value="">Todos</option>
+            {origenes.map((o) => <option key={o} value={o}>{capitalizar(o)}</option>)}
+          </select>
+          <ChevronDown size={14} />
+        </label>
+
+        <label className="caja-pillsel caja-pillsel-date">
+          <span>Fecha:</span>
+          <input type="month" name="mes" value={filtros.mes} onChange={cambiarFiltro} />
+        </label>
+
+        <button type="button" className="caja-clear" onClick={limpiarFiltros}>Limpiar</button>
       </div>
 
-      <section className="caja-seccion">
-        <div className="caja-seccion-header">
-          <div>
-            <h2>Historial de movimientos</h2>
-            <p>Consulta los movimientos registrados en Caja.</p>
-          </div>
-        </div>
-
-        <div className="caja-filtros">
-          <div>
-            <label>Fecha inicial</label>
-            <input
-              type="date"
-              name="fecha_inicio"
-              value={filtros.fecha_inicio}
-              onChange={cambiarFiltro}
-            />
-          </div>
-
-          <div>
-            <label>Fecha final</label>
-            <input
-              type="date"
-              name="fecha_fin"
-              value={filtros.fecha_fin}
-              onChange={cambiarFiltro}
-            />
-          </div>
-
-          <div>
-            <label>Tipo de movimiento</label>
-            <select
-              name="tipo"
-              value={filtros.tipo}
-              onChange={cambiarFiltro}
-            >
-              <option value="">Todos</option>
-              <option value="entrada">Entradas</option>
-              <option value="salida">Salidas</option>
-            </select>
-          </div>
-
-          <div>
-            <label>Buscar concepto</label>
-            <input
-              type="text"
-              name="concepto"
-              placeholder="Escribe un concepto"
-              value={filtros.concepto}
-              onChange={cambiarFiltro}
-            />
-          </div>
-
-          <button
-            className="caja-btn caja-btn-secondary"
-            onClick={limpiarFiltros}
-          >
-            Limpiar filtros
-          </button>
-        </div>
-
-        <div className="caja-tabla-contenedor">
+      {/* ── Tabla ── */}
+      <div className="caja-box">
+        <div className="caja-table-wrap">
           {cargando ? (
-            <p className="caja-vacio">Cargando movimientos...</p>
-          ) : movimientos.length === 0 ? (
-            <p className="caja-vacio">No se encontraron movimientos.</p>
+            <p className="caja-empty">Cargando movimientos...</p>
+          ) : visibles.length === 0 ? (
+            <p className="caja-empty">No se encontraron movimientos.</p>
           ) : (
-            <table className="caja-tabla">
+            <table className="caja-table">
               <thead>
                 <tr>
                   <th>Fecha</th>
                   <th>Concepto</th>
                   <th>Tipo</th>
                   <th>Origen</th>
-                  <th>Usuario</th>
                   <th>Monto</th>
+                  <th>Usuario</th>
                 </tr>
               </thead>
-
               <tbody>
-                {movimientos.map((movimiento) => (
-                  <tr key={movimiento.id_movimiento}>
-                    <td>{fechaLegible(movimiento.fecha)}</td>
-                    <td>{movimiento.concepto}</td>
+                {filas.map((m, i) => (
+                  <tr key={m.id_movimiento} style={{ '--i': i }}>
+                    <td className="caja-muted">{fechaCorta(m.fecha)}</td>
+                    <td className="caja-concept">{m.concepto}</td>
                     <td>
-                      <span className={`caja-etiqueta ${movimiento.tipo}`}>
-                        {movimiento.tipo}
-                      </span>
+                      <span className={`caja-pill ${m.tipo === 'entrada' ? 'green' : 'red'}`}>{capitalizar(m.tipo)}</span>
                     </td>
-                    <td>{movimiento.origen}</td>
-                    <td>
-                      {movimiento.nombre_usuario || '—'}{' '}
-                      {movimiento.apellido_paterno || ''}
+                    <td className="caja-muted">{capitalizar(m.origen) || '—'}</td>
+                    <td className={m.tipo === 'entrada' ? 'caja-amt pos' : 'caja-amt neg'}>
+                      {m.tipo === 'entrada' ? '+' : '-'}{formatoMoneda(m.monto)}
                     </td>
-                    <td className={movimiento.tipo === 'entrada'
-                      ? 'caja-entrada'
-                      : 'caja-salida'
-                    }>
-                      {movimiento.tipo === 'entrada' ? '+' : '-'}
-                      {formatoMoneda(movimiento.monto)}
+                    <td className="caja-muted">
+                      {[m.nombre_usuario, m.apellido_paterno].filter(Boolean).join(' ') || '—'}
                     </td>
                   </tr>
                 ))}
@@ -349,104 +284,30 @@ function CajaView() {
             </table>
           )}
         </div>
-      </section>
 
-      {mostrarFormulario && (
-        <div className="caja-modal-fondo">
-          <div className="caja-modal">
-            <div className="caja-modal-header">
-              <div>
-                <h2>
-                  {formulario.tipo === 'entrada'
-                    ? 'Registrar entrada'
-                    : 'Registrar salida'}
-                </h2>
-                <p>Ingresa los datos del movimiento.</p>
-              </div>
-
-              <button
-                type="button"
-                className="caja-cerrar"
-                onClick={() => setMostrarFormulario(false)}
-              >
-                ×
+        {!cargando && visibles.length > 0 && (
+          <div className="caja-foot">
+            <span>
+              Mostrando {desde + 1}-{Math.min(desde + POR_PAGINA, visibles.length)} de {visibles.length} movimientos
+            </span>
+            <div className="caja-pager">
+              <button type="button" disabled={paginaActual === 1} onClick={() => setPagina(paginaActual - 1)} aria-label="Anterior">
+                <ChevronLeft size={15} />
+              </button>
+              {Array.from({ length: totalPaginas }, (_, i) => i + 1).map((n) => (
+                <button key={n} type="button" className={n === paginaActual ? 'on' : ''} onClick={() => setPagina(n)}>{n}</button>
+              ))}
+              <button type="button" disabled={paginaActual === totalPaginas} onClick={() => setPagina(paginaActual + 1)} aria-label="Siguiente">
+                <ChevronRight size={15} />
               </button>
             </div>
-
-            <form onSubmit={guardarMovimiento}>
-              <div className="caja-campo">
-                <label>Tipo de movimiento</label>
-                <select
-                  name="tipo"
-                  value={formulario.tipo}
-                  onChange={cambiarFormulario}
-                  required
-                >
-                  <option value="entrada">Entrada</option>
-                  <option value="salida">Salida</option>
-                </select>
-              </div>
-
-              <div className="caja-campo">
-                <label>Fecha y hora</label>
-                <input
-                  type="datetime-local"
-                  name="fecha"
-                  value={formulario.fecha}
-                  onChange={cambiarFormulario}
-                  required
-                />
-              </div>
-
-              <div className="caja-campo">
-                <label>Concepto</label>
-                <input
-                  type="text"
-                  name="concepto"
-                  value={formulario.concepto}
-                  onChange={cambiarFormulario}
-                  placeholder="Ej. Fondo inicial de caja"
-                  maxLength={255}
-                  required
-                />
-              </div>
-
-              <div className="caja-campo">
-                <label>Monto</label>
-                <input
-                  type="number"
-                  name="monto"
-                  value={formulario.monto}
-                  onChange={cambiarFormulario}
-                  placeholder="0.00"
-                  min="0.01"
-                  step="0.01"
-                  required
-                />
-              </div>
-
-              <div className="caja-modal-acciones">
-                <button
-                  type="button"
-                  className="caja-btn caja-btn-secondary"
-                  onClick={() => setMostrarFormulario(false)}
-                  disabled={guardando}
-                >
-                  Cancelar
-                </button>
-
-                <button
-                  type="submit"
-                  className="caja-btn caja-btn-primary"
-                  disabled={guardando}
-                >
-                  {guardando ? 'Guardando...' : 'Guardar movimiento'}
-                </button>
-              </div>
-            </form>
           </div>
-        </div>
-      )}
+        )}
+      </div>
+
+      {/* ── Modales ── */}
+      {mostrarFormulario && formulario.tipo === 'entrada' && <ModalEntradaCaja {...propsModal} />}
+      {mostrarFormulario && formulario.tipo === 'salida' && <ModalSalidaCaja {...propsModal} />}
     </div>
   );
 }

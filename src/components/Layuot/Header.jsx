@@ -338,6 +338,10 @@ export default function Header({ user, title, subtitle, onNavigate, onOpenChange
               cargando={cargandoNotificaciones}
               error={errorNotificaciones}
               onActualizar={cargarNotificaciones}
+              onNavigate={(modulo) => {
+                setNotificacionesOpen(false);
+                onNavigate?.(modulo);
+              }}
             />
           )}
         </div>

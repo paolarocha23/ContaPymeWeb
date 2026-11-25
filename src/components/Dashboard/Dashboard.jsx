@@ -58,13 +58,19 @@ function Sparkline({ path, featured }) {
 }
 
 function SalesChart({ months = [] }) {
-  const displayMonths = months.length === 6 ? months : [
-    { mes: 'Mayo', ventas: 0, ingresos: 0, gastos: 0 },
-    { mes: 'Junio', ventas: 0, ingresos: 0, gastos: 0 },
-    { mes: 'Julio', ventas: 0, ingresos: 0, gastos: 0 },
-    { mes: 'Agosto', ventas: 0, ingresos: 0, gastos: 0 },
-    { mes: 'Septiembre', ventas: 0, ingresos: 0, gastos: 0 },
-    { mes: 'Octubre', ventas: 0, ingresos: 0, gastos: 0 }
+  const displayMonths = months.length > 0 ? months : [
+    { mes: 'Ene', ventas: 0, ingresos: 0, gastos: 0 },
+    { mes: 'Feb', ventas: 0, ingresos: 0, gastos: 0 },
+    { mes: 'Mar', ventas: 0, ingresos: 0, gastos: 0 },
+    { mes: 'Abr', ventas: 0, ingresos: 0, gastos: 0 },
+    { mes: 'May', ventas: 0, ingresos: 0, gastos: 0 },
+    { mes: 'Jun', ventas: 0, ingresos: 0, gastos: 0 },
+    { mes: 'Jul', ventas: 0, ingresos: 0, gastos: 0 },
+    { mes: 'Ago', ventas: 0, ingresos: 0, gastos: 0 },
+    { mes: 'Sep', ventas: 0, ingresos: 0, gastos: 0 },
+    { mes: 'Oct', ventas: 0, ingresos: 0, gastos: 0 },
+    { mes: 'Nov', ventas: 0, ingresos: 0, gastos: 0 },
+    { mes: 'Dic', ventas: 0, ingresos: 0, gastos: 0 }
   ];
 
   const maxDataVal = Math.max(
@@ -74,46 +80,171 @@ function SalesChart({ months = [] }) {
   const maxVal = Math.max(Math.ceil(maxDataVal / 10000) * 10000, 20000);
 
   const formatK = (val) => {
-    if (val >= 1000) {
-      const k = val / 1000;
-      return Number.isInteger(k) ? `$${k}k` : `$${k.toFixed(0)}k`;
-    }
+    if (val >= 1000000) return `$${(val / 1000000).toFixed(1)}M`;
+    if (val >= 1000) return `$${Math.round(val / 1000)}k`;
     return `$${Math.round(val)}`;
   };
 
-  const xCoords = [52, 170, 290, 410, 530, 650];
-  const calcY = (val) => Math.round(158 - (Math.min(val, maxVal) / maxVal) * 140);
+  const colWidth = 92;
+  const leftPad = 58;
+  const rightPad = 48;
+  const svgWidth = Math.max(760, leftPad + rightPad + (displayMonths.length - 1) * colWidth);
+  const svgHeight = 200;
+
+  const xCoords = displayMonths.map((_, i) => leftPad + i * colWidth);
+  const calcY = (val) => Math.round(155 - (Math.min(val, maxVal) / maxVal) * 135);
 
   const pointsSales = displayMonths.map((m, i) => `${xCoords[i]},${calcY(Number(m.ventas || 0))}`).join(' ');
   const pointsIncome = displayMonths.map((m, i) => `${xCoords[i]},${calcY(Number(m.ingresos || 0))}`).join(' ');
   const pointsExpense = displayMonths.map((m, i) => `${xCoords[i]},${calcY(Number(m.gastos || 0))}`).join(' ');
 
-  const salesPointsArray = displayMonths.map((m, i) => `${xCoords[i]},${calcY(Number(m.ventas || 0))}`);
+  return (
+    <div
+      style={{
+        overflowX: 'auto',
+        overflowY: 'hidden',
+        WebkitOverflowScrolling: 'touch',
+        paddingBottom: 6
+      }}
+    >
+      <svg
+        className="cpy-sales-chart"
+        viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+        style={{ minWidth: svgWidth, height: 200 }}
+        role="img"
+        aria-label="Gráfica de ventas, ingresos y gastos por mes"
+      >
+        <g className="cpy-chart-grid">
+          <path d={`M${leftPad - 15} 20H${svgWidth - 10} M${leftPad - 15} 65H${svgWidth - 10} M${leftPad - 15} 110H${svgWidth - 10} M${leftPad - 15} 155H${svgWidth - 10}`} />
+        </g>
+        <g className="cpy-chart-y-labels">
+          <text x="0" y="24">{formatK(maxVal)}</text>
+          <text x="0" y="69">{formatK(maxVal * 0.75)}</text>
+          <text x="0" y="114">{formatK(maxVal * 0.5)}</text>
+          <text x="0" y="159">{formatK(maxVal * 0.25)}</text>
+        </g>
+        <polyline className="cpy-chart-line cpy-chart-line-sales" points={pointsSales} strokeWidth="3" />
+        <polyline className="cpy-chart-line cpy-chart-line-income" points={pointsIncome} strokeWidth="3" />
+        <polyline className="cpy-chart-line cpy-chart-line-expense" points={pointsExpense} strokeWidth="3" />
+        
+        {displayMonths.map((m, i) => {
+          const x = xCoords[i];
+          const yS = calcY(Number(m.ventas || 0));
+          const yI = calcY(Number(m.ingresos || 0));
+          const yE = calcY(Number(m.gastos || 0));
+          return (
+            <g key={m.periodo || m.mes + i}>
+              <circle cx={x} cy={yS} r="4.5" fill="#142a95" stroke="#fff" strokeWidth="2">
+                <title>{`${m.mes} ${m.periodo || ''}\nVentas: ${formatMoney(m.ventas)}`}</title>
+              </circle>
+              <circle cx={x} cy={yI} r="4.5" fill="#12805c" stroke="#fff" strokeWidth="2">
+                <title>{`${m.mes} ${m.periodo || ''}\nIngresos: ${formatMoney(m.ingresos)}`}</title>
+              </circle>
+              <circle cx={x} cy={yE} r="4.5" fill="#c2362f" stroke="#fff" strokeWidth="2">
+                <title>{`${m.mes} ${m.periodo || ''}\nGastos: ${formatMoney(m.gastos)}`}</title>
+              </circle>
+            </g>
+          );
+        })}
+        <g className="cpy-chart-x-labels">
+          {displayMonths.map((m, i) => (
+            <text key={(m.periodo || m.mes) + i} x={xCoords[i] - 14} y="185">
+              {m.mes.slice(0, 3)}
+            </text>
+          ))}
+        </g>
+      </svg>
+    </div>
+  );
+}
+
+function StockDonutChart({ normal = 0, bajo = 0, agotado = 0, total = 0 }) {
+  const tot = total > 0 ? total : (normal + bajo + agotado);
+  const size = 150;
+  const strokeWidth = 16;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+
+  const pNormal = tot > 0 ? normal / tot : 0;
+  const pBajo = tot > 0 ? bajo / tot : 0;
+  const pAgotado = tot > 0 ? agotado / tot : 0;
+
+  const strokeNormal = pNormal * circumference;
+  const strokeBajo = pBajo * circumference;
+  const strokeAgotado = pAgotado * circumference;
+
+  const offsetNormal = 0;
+  const offsetBajo = -strokeNormal;
+  const offsetAgotado = -(strokeNormal + strokeBajo);
 
   return (
-    <svg className="cpy-sales-chart" viewBox="0 0 680 200" preserveAspectRatio="none" role="img" aria-label="Gráfica de ventas e ingresos por mes">
-      <g className="cpy-chart-grid">
-        <path d="M48 18H670 M48 58H670 M48 98H670 M48 138H670" />
-      </g>
-      <g className="cpy-chart-y-labels">
-        <text x="0" y="22">{formatK(maxVal)}</text>
-        <text x="0" y="62">{formatK(maxVal * 0.75)}</text>
-        <text x="0" y="102">{formatK(maxVal * 0.5)}</text>
-        <text x="0" y="142">{formatK(maxVal * 0.25)}</text>
-      </g>
-      <polyline className="cpy-chart-line cpy-chart-line-sales" points={pointsSales} />
-      <polyline className="cpy-chart-line cpy-chart-line-income" points={pointsIncome} />
-      <polyline className="cpy-chart-line cpy-chart-line-expense" points={pointsExpense} />
-      {salesPointsArray.map((point) => {
-        const [cx, cy] = point.split(',');
-        return <circle key={point} className="cpy-chart-point" cx={cx} cy={cy} r="4.5" />;
-      })}
-      <g className="cpy-chart-x-labels">
-        {displayMonths.map((m, i) => (
-          <text key={m.mes + i} x={xCoords[i] - 18} y="176">{m.mes}</text>
-        ))}
-      </g>
-    </svg>
+    <div style={{ position: 'relative', width: size, height: size, margin: '8px auto 14px auto' }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)' }}>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="#e8ecfb"
+          strokeWidth={strokeWidth}
+        />
+        {normal > 0 && (
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke="#142a95"
+            strokeWidth={strokeWidth}
+            strokeDasharray={`${strokeNormal} ${circumference}`}
+            strokeDashoffset={offsetNormal}
+          />
+        )}
+        {bajo > 0 && (
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke="#f0ad3d"
+            strokeWidth={strokeWidth}
+            strokeDasharray={`${strokeBajo} ${circumference}`}
+            strokeDashoffset={offsetBajo}
+          />
+        )}
+        {agotado > 0 && (
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke="#c2362f"
+            strokeWidth={strokeWidth}
+            strokeDasharray={`${strokeAgotado} ${circumference}`}
+            strokeDashoffset={offsetAgotado}
+          />
+        )}
+      </svg>
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          textAlign: 'center',
+          pointerEvents: 'none'
+        }}
+      >
+        <strong style={{ fontSize: '32px', fontWeight: 800, color: '#0f1b4d', lineHeight: 1 }}>
+          {tot}
+        </strong>
+        <span style={{ fontSize: '11px', color: '#7d8499', fontWeight: 600, marginTop: 4 }}>
+          Productos
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -186,8 +317,18 @@ export default function Dashboard({ onNavigate }) {
     };
 
     fetchDashboard();
+
+    // Auto-actualizar cuando la ventana recupera foco o cada 20 segundos
+    const handleFocus = () => fetchDashboard();
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('contapyme_operacion_registrada', handleFocus);
+    const interval = setInterval(fetchDashboard, 20000);
+
     return () => {
       isMounted = false;
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('contapyme_operacion_registrada', handleFocus);
+      clearInterval(interval);
     };
   }, []);
 
@@ -254,8 +395,8 @@ export default function Dashboard({ onNavigate }) {
 
   // Subtítulo de rango de meses para la gráfica
   const periodoGrafica = graficaSemestral.length >= 2
-    ? `Importes de ${graficaSemestral[0].mes.toLowerCase()} a ${graficaSemestral[graficaSemestral.length - 1].mes.toLowerCase()} ${new Date().getFullYear()}`
-    : 'Importes semestrales';
+    ? `Importes de ${graficaSemestral[0].mes.toLowerCase()} a ${graficaSemestral[graficaSemestral.length - 1].mes.toLowerCase()} (Desplaza para ver todos los meses)`
+    : 'Importes mensuales (Desplaza para ver todos los meses)';
 
   // Barras de los últimos 7 días
   const weekDays = ventasHoy.dias && ventasHoy.dias.length === 7 ? ventasHoy.dias : [
@@ -295,15 +436,16 @@ export default function Dashboard({ onNavigate }) {
           <div className="cpy-card-heading">
             <div><h2>Estado del inventario</h2></div>
           </div>
-          <div className="cpy-stock-gauge">
-            <div className="cpy-gauge-arc" />
-            <strong>{inventario.total_productos}</strong>
-            <span className="cpy-gauge-caption">Total de productos</span>
-          </div>
+          <StockDonutChart
+            normal={inventario.normal}
+            bajo={inventario.bajo}
+            agotado={inventario.agotado}
+            total={inventario.total_productos}
+          />
           <div className="cpy-stock-summary">
-            <span><i className="stock-normal" />Normal <b>{inventario.normal}</b></span>
-            <span><i className="stock-low" />Bajo <b>{inventario.bajo}</b></span>
-            <span><i className="stock-out" />Agotado <b>{inventario.agotado}</b></span>
+            <span><i className="stock-normal" style={{ background: '#142a95' }} />Normal <b>{inventario.normal}</b></span>
+            <span><i className="stock-low" style={{ background: '#f0ad3d' }} />Bajo <b>{inventario.bajo}</b></span>
+            <span><i className="stock-out" style={{ background: '#c2362f' }} />Agotado <b>{inventario.agotado}</b></span>
           </div>
         </article>
 

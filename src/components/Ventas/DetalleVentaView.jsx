@@ -37,7 +37,10 @@ function normalizar(resp) {
     estatus: v.estatus,
     total: Number(v.total || 0),
     pagado: Number(v.monto_pagado || 0),
+    monto_pagado: Number(v.monto_pagado || 0),
     saldo: Number(v.saldo_pendiente || 0),
+    saldo_pendiente: Number(v.saldo_pendiente || 0),
+    forma_pago: v.forma_pago,
     formaPago: v.forma_pago,
     condiciones: v.condiciones_pago,
     vencimiento: v.fecha_vencimiento,
@@ -53,7 +56,7 @@ function normalizar(resp) {
       return {
         id_producto: it.id_producto,
         nombre: it.producto || it.nombre || it.nombre_producto,
-        tipo: it.tipo || 'producto',
+        tipo: it.tipo || it.tipo_producto || 'producto',
         cantidad,
         precio,
         subtotal: Number(it.subtotal ?? cantidad * precio),
@@ -255,8 +258,12 @@ export default function DetalleVentaView({ idVenta, onBack, onVentaActualizada, 
               <div className="ven-op">
                 <span className="ven-op-ico" style={{ color: '#142A95' }}><Boxes size={16} /></span>
                 <small>Inventario</small>
-                <b>{piezas > 0 ? `−${piezas} ${piezas === 1 ? 'pieza' : 'piezas'}` : 'Sin movimiento'}</b>
-                <p>{piezas > 0 ? 'Existencias descontadas al confirmar.' : 'Solo servicios, no afecta inventario.'}</p>
+                <b>{piezas > 0 ? `−${piezas} ${piezas === 1 ? 'pieza' : 'piezas'}` : 'Sin descuento'}</b>
+                <p>
+                  {piezas > 0
+                    ? 'Existencias descontadas al confirmar.'
+                    : 'No se descontó nada del inventario ya que fue un servicio.'}
+                </p>
               </div>
               <div className="ven-op">
                 <span className="ven-op-ico" style={{ color: '#12805C' }}><Banknote size={16} /></span>

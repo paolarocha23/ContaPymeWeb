@@ -138,7 +138,7 @@ export default function IngresoDetailView({ ingreso: i, onBack, onEdit, onCancel
                   </small>
                 </div>
                 <span className={`ing-pill ${estatusVenta.clase}`}>{estatusVenta.label}</span>
-                <button type="button" className="btn btn-outline" onClick={onIrVenta}>
+                <button type="button" className="btn btn-outline" onClick={() => onIrVenta?.(venta?.id_venta, venta)}>
                   <ExternalLink size={15} /> Ver venta
                 </button>
               </div>

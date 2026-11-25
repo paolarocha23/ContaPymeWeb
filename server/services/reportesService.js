@@ -12,7 +12,8 @@ import {
     obtenerDetalleGastos,
     obtenerDetalleInventario,
     obtenerDetalleCuentasPorCobrar,
-    obtenerDetalleCuentasPorPagar
+    obtenerDetalleCuentasPorPagar,
+    obtenerDetalleMovimientosInventario
 } from '../repositories/reportesRepository.js';
 
 // Convertir valores numéricos de PostgreSQL a números JavaScript.
@@ -306,3 +307,19 @@ export const obtenerReporteDetalleCuentasPorPagar = async (empresaId = null) => 
         cuentas_por_pagar: cuentasConvertidas
     };
 };
+
+// DETALLE DE MOVIMIENTOS DE INVENTARIO
+export const obtenerReporteDetalleMovimientosInventario = async (filtros = {}, empresaId = null) => {
+    const movimientos = await obtenerDetalleMovimientosInventario(filtros, empresaId);
+
+    return {
+        total_registros: movimientos.length,
+        movimientos: movimientos.map((m) => ({
+            ...m,
+            cantidad: Number(m.cantidad || 0),
+            existencia_antes: Number(m.existencia_antes || 0),
+            existencia_despues: Number(m.existencia_despues || 0)
+        }))
+    };
+};
+

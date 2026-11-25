@@ -15,8 +15,8 @@ const SALDO_SQL = `
     SELECT SUM(cx.saldo_pendiente)
       FROM cuentas_por_cobrar cx
      WHERE cx.id_cliente = c.id_cliente
-       AND cx.empresa_id = c.empresa_id
        AND LOWER(COALESCE(cx.estatus, '')) NOT LIKE 'cancelad%'
+       AND LOWER(COALESCE(cx.estatus, '')) NOT LIKE 'saldad%'
   ), 0)`;
 
 const COLUMNAS = `
@@ -124,7 +124,7 @@ export async function opciones(empresaId = null) {
 /** Ventas y cobros del cliente. */
 export async function historial(id) {
   const { rows: ventas } = await pool.query(
-    `SELECT v.id_venta, v.codigo, v.fecha, v.total, v.monto_pagado, v.estatus,
+    `SELECT v.id_venta, v.codigo, v.fecha, v.total, v.monto_pagado, v.estatus, v.condiciones_pago,
             (SELECT STRING_AGG(DISTINCT p.nombre, ', ')
                FROM detalle_ventas dv
                JOIN productos p ON p.id_producto = dv.id_producto
@@ -142,7 +142,20 @@ export async function historial(id) {
        JOIN cuentas_por_cobrar cx ON cx.id_cxc = cb.id_cxc
        LEFT JOIN ventas v ON v.id_venta = cx.id_venta
       WHERE cx.id_cliente = $1
-      ORDER BY cb.fecha DESC, cb.id_cobro DESC`,
+      UNION ALL
+      SELECT v.id_venta * 100000 AS id_cobro, v.fecha,
+             CASE WHEN LOWER(COALESCE(v.condiciones_pago, 'contado')) = 'contado' THEN v.total ELSE v.monto_pagado END AS monto,
+             v.forma_pago, v.id_venta, v.codigo AS venta_codigo
+        FROM ventas v
+       WHERE v.id_cliente = $1
+         AND LOWER(COALESCE(v.estatus, '')) <> 'cancelada'
+         AND ((LOWER(COALESCE(v.condiciones_pago, 'contado')) = 'contado' AND v.total > 0)
+              OR (LOWER(COALESCE(v.condiciones_pago, 'contado')) = 'credito' AND v.monto_pagado > 0))
+         AND NOT EXISTS (
+           SELECT 1 FROM cuentas_por_cobrar cx JOIN cxc_cobros cb ON cb.id_cxc = cx.id_cxc
+            WHERE cx.id_venta = v.id_venta AND cb.monto = v.monto_pagado
+         )
+      ORDER BY fecha DESC, id_cobro DESC`,
     [id]
   );
 

@@ -117,6 +117,7 @@ export default function NuevaCompraView({ onBack, onSuccess }) {
         items: items.map((i) => ({ id_producto: i.id_producto, cantidad: i.cantidad, costo_unitario: i.costo }))
       });
       if (!resp.success) { setErrorEnvio(resp.message || 'No se pudo registrar la compra.'); return; }
+      window.dispatchEvent(new CustomEvent('contapyme_operacion_registrada'));
       onSuccess(resp.data);
     } catch (err) {
       setErrorEnvio(err.message || 'Error al procesar la compra.');
@@ -206,8 +207,7 @@ export default function NuevaCompraView({ onBack, onSuccess }) {
                   onChange={setFormaPago}
                   options={[
                     { value: 'efectivo', label: 'Efectivo', icon: <Banknote size={14} /> },
-                    { value: 'tarjeta', label: 'Tarjeta', icon: <CreditCard size={14} /> },
-                    { value: 'transfer', label: 'Transfer.', icon: <Landmark size={14} /> }
+                    { value: 'tarjeta', label: 'Tarjeta', icon: <CreditCard size={14} /> }
                   ]}
                 />
               </div>

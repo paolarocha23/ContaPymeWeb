@@ -4,12 +4,15 @@ const TIPOS = ['producto', 'servicio'];
 
 const texto = (valor) => (typeof valor === 'string' ? valor.trim() : '');
 
-function validarNumero(valor, campo, { entero = false } = {}) {
+function validarNumero(valor, campo, { entero = false, mayorQueCero = false } = {}) {
   const n = Number(valor);
 
-  if (valor === '' || valor === null || valor === undefined || !Number.isFinite(n) || n < 0 || (entero && !Number.isInteger(n))) {
+  const invalido = valor === '' || valor === null || valor === undefined ||
+    !Number.isFinite(n) || (mayorQueCero ? n <= 0 : n < 0) || (entero && !Number.isInteger(n));
+
+  if (invalido) {
     throw new AppError(
-      `El campo ${campo} debe ser ${entero ? 'un número entero' : 'un número'} mayor o igual a cero.`,
+      `El campo ${campo} debe ser ${entero ? 'un número entero' : 'un número'} mayor ${mayorQueCero ? 'a' : 'o igual a'} cero.`,
       400
     );
   }
@@ -46,8 +49,8 @@ export function validarProducto(body = {}) {
     throw new AppError('Debes seleccionar una categoría válida.', 400);
   }
 
-  const precio_compra = validarNumero(body.precio_compra, 'precio de compra');
-  const precio_venta = validarNumero(body.precio_venta, 'precio de venta');
+  const precio_compra = validarNumero(body.precio_compra, 'precio de compra', { mayorQueCero: true });
+  const precio_venta = validarNumero(body.precio_venta, 'precio de venta', { mayorQueCero: true });
 
   // Stock y stock mínimo solo existen para productos que manejan inventario.
   let stock = null;

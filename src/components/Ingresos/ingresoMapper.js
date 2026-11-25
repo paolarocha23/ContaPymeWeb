@@ -37,7 +37,7 @@ export const ESTATUS_VENTA = {
   pendiente_pago: { label: 'Pendiente de pago', clase: 'amber' },
   pago_parcial: { label: 'Pago parcial', clase: 'blue' },
   pagada: { label: 'Pagada', clase: 'green' },
-  cancelada: { label: 'Cancelada', clase: 'gray' }
+  cancelada: { label: 'Cancelada', clase: 'red' }
 };
 
 // Últimos 12 meses para el filtro de fecha ('' = todo el historial)

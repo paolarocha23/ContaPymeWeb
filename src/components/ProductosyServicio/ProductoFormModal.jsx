@@ -62,7 +62,7 @@ export default function ProductoFormModal({ producto, categorias, onClose, onSav
     }));
   };
 
-  const precioInvalido = (v) => v === '' || !Number.isFinite(Number(v)) || Number(v) < 0;
+  const precioInvalido = (v) => v === '' || !Number.isFinite(Number(v)) || Number(v) <= 0;
   const enteroInvalido = (v) => v === '' || !Number.isInteger(Number(v)) || Number(v) < 0;
 
   const validar = () => {
@@ -71,8 +71,8 @@ export default function ProductoFormModal({ producto, categorias, onClose, onSav
     if (!form.nombre.trim()) n.nombre = 'El nombre es obligatorio.';
     if (!form.id_categoria) n.id_categoria = 'Selecciona una categoría.';
     if (!form.unidad_medida.trim()) n.unidad_medida = 'Selecciona una unidad.';
-    if (precioInvalido(form.precio_compra)) n.precio_compra = 'Ingresa un precio de compra válido.';
-    if (precioInvalido(form.precio_venta)) n.precio_venta = 'Ingresa un precio de venta válido.';
+    if (precioInvalido(form.precio_compra)) n.precio_compra = 'El precio de compra debe ser mayor a 0.';
+    if (precioInvalido(form.precio_venta)) n.precio_venta = 'El precio de venta debe ser mayor a 0.';
     if (esProducto) {
       if (enteroInvalido(form.stock)) n.stock = 'Ingresa un entero mayor o igual a cero.';
       if (enteroInvalido(form.stock_minimo)) n.stock_minimo = 'Ingresa un entero mayor o igual a cero.';
@@ -116,7 +116,7 @@ export default function ProductoFormModal({ producto, categorias, onClose, onSav
           value={form[name]}
           onChange={cambiar}
           placeholder={placeholder}
-          min={type === 'number' ? '0' : undefined}
+          min={type === 'number' ? (name.includes('precio') ? '0.01' : '0') : undefined}
           step={step}
           disabled={guardando || disabled}
         />

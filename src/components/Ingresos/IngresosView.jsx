@@ -99,9 +99,10 @@ export default function IngresosView({ onNavigate }) {
     setCancelModal(null);
   };
 
-  const irAVenta = () => {
+  const irAVenta = (idVenta) => {
     setBloqueoModal(null);
-    if (onNavigate) onNavigate('ventas');
+    const targetId = idVenta || detalle?.id_venta || detalle?.id_referencia;
+    if (onNavigate) onNavigate('ventas', targetId ? { idVenta: targetId } : null);
   };
 
   const aviso = feedback && (

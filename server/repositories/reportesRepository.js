@@ -507,3 +507,40 @@ export const obtenerDetalleCuentasPorPagar = async (empresaId = null) => {
 
   return rows;
 };
+
+// DETALLE DE MOVIMIENTOS DE INVENTARIO
+export const obtenerDetalleMovimientosInventario = async (filtros = {}, empresaId = null) => {
+  const { where, valores } = filtroFechas(
+    'm.fecha',
+    filtros.fecha_inicio,
+    filtros.fecha_fin,
+    empresaId,
+    'm'
+  );
+
+  const { rows } = await pool.query(`
+    SELECT
+      m.id_movimiento,
+      m.fecha,
+      p.id_producto,
+      p.codigo,
+      p.nombre AS nombre_producto,
+      p.unidad_medida,
+      m.tipo_movimiento,
+      m.cantidad,
+      m.existencia_antes,
+      m.existencia_despues,
+      m.motivo,
+      m.origen,
+      m.id_referencia,
+      u.nombre_usuario
+    FROM movimientos_inventario m
+    INNER JOIN productos p ON p.id_producto = m.id_producto
+    LEFT JOIN usuarios u ON u.id_usuario = m.id_usuario
+    ${where}
+    ORDER BY m.fecha DESC, m.id_movimiento DESC
+  `, valores);
+
+  return rows;
+};
+

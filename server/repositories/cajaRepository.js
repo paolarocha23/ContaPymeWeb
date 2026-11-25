@@ -12,17 +12,17 @@ export async function obtenerMovimientosCaja(filtros = {}, empresaId = null) {
   let consulta = `
     SELECT
       m.id_movimiento,
-      m.fecha,
+      TO_CHAR(m.fecha - INTERVAL '6 hours', 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha,
       m.tipo,
       m.concepto,
       m.monto,
       m.origen,
       m.id_referencia,
       m.id_usuario,
-      u.nombre AS nombre_usuario,
-      u.apellido_paterno
+      COALESCE(u.nombre, 'Sistema') AS nombre_usuario,
+      COALESCE(u.apellido_paterno, '') AS apellido_paterno
     FROM movimientos_caja m
-    INNER JOIN usuarios u
+    LEFT JOIN usuarios u
       ON u.id_usuario = m.id_usuario
     WHERE 1 = 1
   `;
@@ -31,19 +31,19 @@ export async function obtenerMovimientosCaja(filtros = {}, empresaId = null) {
   let posicion = 1;
 
   if (empresaId) {
-    consulta += ` AND m.empresa_id = $${posicion}`;
+    consulta += ` AND (m.empresa_id = $${posicion} OR m.empresa_id IS NULL)`;
     valores.push(empresaId);
     posicion++;
   }
 
   if (fecha_inicio) {
-    consulta += ` AND m.fecha >= $${posicion}`;
+    consulta += ` AND (m.fecha - INTERVAL '6 hours')::date >= $${posicion}::date`;
     valores.push(fecha_inicio);
     posicion++;
   }
 
   if (fecha_fin) {
-    consulta += ` AND m.fecha < ($${posicion}::date + INTERVAL '1 day')`;
+    consulta += ` AND (m.fecha - INTERVAL '6 hours')::date <= $${posicion}::date`;
     valores.push(fecha_fin);
     posicion++;
   }
@@ -60,7 +60,7 @@ export async function obtenerMovimientosCaja(filtros = {}, empresaId = null) {
     posicion++;
   }
 
-  consulta += ` ORDER BY m.fecha DESC, m.id_movimiento DESC`;
+  consulta += ` ORDER BY m.id_movimiento DESC`;
 
   const { rows } = await pool.query(consulta, valores);
   return rows;
@@ -71,17 +71,17 @@ export async function obtenerMovimientoCajaPorId(id) {
   const consulta = `
     SELECT
       m.id_movimiento,
-      m.fecha,
+      TO_CHAR(m.fecha - INTERVAL '6 hours', 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha,
       m.tipo,
       m.concepto,
       m.monto,
       m.origen,
       m.id_referencia,
       m.id_usuario,
-      u.nombre AS nombre_usuario,
-      u.apellido_paterno
+      COALESCE(u.nombre, 'Sistema') AS nombre_usuario,
+      COALESCE(u.apellido_paterno, '') AS apellido_paterno
     FROM movimientos_caja m
-    INNER JOIN usuarios u
+    LEFT JOIN usuarios u
       ON u.id_usuario = m.id_usuario
     WHERE m.id_movimiento = $1
   `;
@@ -169,19 +169,19 @@ export async function obtenerResumenCaja(filtros = {}, empresaId = null) {
   let posicion = 1;
 
   if (empresaId) {
-    consulta += ` AND empresa_id = $${posicion}`;
+    consulta += ` AND (empresa_id = $${posicion} OR empresa_id IS NULL)`;
     valores.push(empresaId);
     posicion++;
   }
 
   if (fecha_inicio) {
-    consulta += ` AND fecha >= $${posicion}`;
+    consulta += ` AND (fecha - INTERVAL '6 hours')::date >= $${posicion}::date`;
     valores.push(fecha_inicio);
     posicion++;
   }
 
   if (fecha_fin) {
-    consulta += ` AND fecha < ($${posicion}::date + INTERVAL '1 day')`;
+    consulta += ` AND (fecha - INTERVAL '6 hours')::date <= $${posicion}::date`;
     valores.push(fecha_fin);
     posicion++;
   }

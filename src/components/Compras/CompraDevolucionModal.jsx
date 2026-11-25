@@ -12,7 +12,7 @@ import '../Operaciones/Operaciones.css';
  */
 export default function CompraDevolucionModal({ compra, onClose, onDone }) {
   const [sel, setSel] = useState({});
-  const [resolucion, setResolucion] = useState('cxp');
+  const [resolucion, setResolucion] = useState(saldo > 0 ? 'cxp' : 'ingreso');
   const [motivo, setMotivo] = useState('');
   const [stock, setStock] = useState({});
   const [enviando, setEnviando] = useState(false);
@@ -95,7 +95,7 @@ export default function CompraDevolucionModal({ compra, onClose, onDone }) {
           value={resolucion} onChange={setResolucion}
           options={[
             { value: 'cxp', label: 'Ajustar cuenta por pagar', icon: <Wallet size={14} /> },
-            { value: 'ingreso', label: 'Registrar ingreso (reembolso)', icon: <Banknote size={14} /> }
+            { value: 'ingreso', label: 'Reembolso en efectivo (Entrada a Caja)', icon: <Banknote size={14} /> }
           ]}
         />
       </div>

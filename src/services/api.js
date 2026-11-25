@@ -764,6 +764,16 @@ export const api = {
     return this.request('/reportes/inventario/detalle');
   },
 
+  async getReportesDetalleMovimientosInventario(filtros = {}) {
+    const params = new URLSearchParams();
+    if (filtros.fecha_inicio) params.append('fecha_inicio', filtros.fecha_inicio);
+    if (filtros.fecha_fin) params.append('fecha_fin', filtros.fecha_fin);
+    const query = params.toString();
+    return this.request(
+      `/reportes/inventario/movimientos${query ? `?${query}` : ''}`
+    );
+  },
+
   async getReportesDetalleCuentasPorCobrar() {
     return this.request('/reportes/cxc/detalle');
   },
@@ -772,8 +782,9 @@ export const api = {
     return this.request('/reportes/cxp/detalle');
   },
 
-  async getNotificaciones() {
-    return this.request('/notificaciones');
+  async getNotificaciones(dias = 30) {
+    const query = dias ? `?dias=${dias}` : '';
+    return this.request(`/notificaciones${query}`);
   },
 
   // Ventas

@@ -38,6 +38,7 @@ export default function App() {
   const [user, setUser] = useState(() => api.getUser());
   const [currentTab, setCurrentTab] = useState('usuarios');
   const [activeView, setActiveView] = useState('dashboard');
+  const [viewParams, setViewParams] = useState(null);
 
   // false = se muestra la landing, true = se muestra el login
   const [showLogin, setShowLogin] = useState(false);
@@ -160,13 +161,14 @@ export default function App() {
   };
 
   // Navegación
-  const handleNavigate = (view) => {
+  const handleNavigate = (view, params = null) => {
     if (['usuarios', 'roles', 'bitacora'].includes(view)) {
       setCurrentTab(view);
       setActiveView('admin');
       return;
     }
 
+    setViewParams(params);
     setActiveView(view);
   };
 
@@ -353,7 +355,7 @@ export default function App() {
             )}
 
             {isClientes && <ClientesView />}
-            {isVentas && <VentasView />}
+            {isVentas && <VentasView idVentaInicial={viewParams?.idVenta} />}
             {isCompras && <ComprasView />}
             {isProveedores && <ProveedoresView />}
             {isCategorias && <CategoriasView />}
@@ -363,7 +365,7 @@ export default function App() {
             {isReportes && <ReportesView />}
             {isCuentasPorCobrar && <CuentasPorCobrarView />}
             {activeView === 'inventario' && <InventarioView />}
-            {activeView === 'ingresos' && <IngresosView />}
+            {activeView === 'ingresos' && <IngresosView onNavigate={handleNavigate} />}
             {activeView === 'caja' && <CajaView />}
 
             {!hasOwnView && (

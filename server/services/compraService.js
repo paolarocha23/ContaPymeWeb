@@ -207,11 +207,12 @@ export async function crear(body, idUsuario, empresaId = null) {
       idGasto = gastoRes.rows[0]?.id_gasto;
 
       // Si fue en efectivo, asentar salida en movimientos_caja
-      if (datos.forma_pago === 'efectivo') {
+      const esEfectivo = String(datos.forma_pago || 'efectivo').trim().toLowerCase() === 'efectivo';
+      if (esEfectivo) {
         await gastosRepo.registrarMovimientoCaja({
-          fecha: new Date(),
+          fecha: null,
           tipo: 'salida',
-          concepto: `Compra folio ${codigo}`,
+          concepto: `Compra de mercancía folio ${codigo}`,
           monto: datos.monto_pagado,
           origen: 'compra',
           id_referencia: compra.id_compra,

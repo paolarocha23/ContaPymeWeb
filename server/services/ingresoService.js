@@ -251,3 +251,81 @@ export async function cancelarPorOrigen(client, { id_venta = null, ids_cobro = [
 
   return ingresos.length;
 }
+
+/**
+ * RDF0907 / RF13 – Registra el impacto financiero de la devolución de venta:
+ * - Si fue en efectivo, genera salida en movimientos_caja (egreso de caja física).
+ * - Si fue con tarjeta, NO afecta la caja de efectivo; revierte contablemente en ingresos.
+ */
+export async function registrarReembolsoVenta(client, d) {
+  const formaPago = String(d.forma_pago || '').trim().toLowerCase();
+  const esEfectivo = formaPago === 'efectivo';
+  const montoReembolso = Number(d.monto || 0);
+
+  if (montoReembolso <= 0) return;
+
+  // 1. Salida física de dinero en Caja (solo si se pagó en efectivo)
+  if (esEfectivo) {
+    await repo.insertarMovimientoCaja(client, {
+      tipo: 'salida',
+      concepto: corto(d.concepto || 'Devolución de venta'),
+      monto: montoReembolso,
+      id_referencia: d.id_venta,
+      id_usuario: d.id_usuario,
+      empresa_id: d.empresa_id
+    });
+  }
+
+  // 2. Reversión en ingresos (para reflejar contablemente la disminución del ingreso)
+  let remAjustar = montoReembolso;
+
+  // Primero ajustar ingresos directos de la venta
+  const { rows: ingresosVenta } = await client.query(`
+    SELECT id_ingreso, monto
+    FROM ingresos
+    WHERE id_venta = $1 AND estatus = 'activo'
+    ORDER BY id_ingreso DESC
+    FOR UPDATE
+  `, [d.id_venta]);
+
+  for (const ing of ingresosVenta) {
+    if (remAjustar <= 0) break;
+    const montoActual = Number(ing.monto);
+    const rebaja = Math.min(montoActual, remAjustar);
+    const nuevoMonto = Math.round((montoActual - rebaja) * 100) / 100;
+    remAjustar = Math.round((remAjustar - rebaja) * 100) / 100;
+
+    if (nuevoMonto <= 0) {
+      await client.query(`UPDATE ingresos SET monto = 0, estatus = 'cancelado' WHERE id_ingreso = $1`, [ing.id_ingreso]);
+    } else {
+      await client.query(`UPDATE ingresos SET monto = $1 WHERE id_ingreso = $2`, [nuevoMonto, ing.id_ingreso]);
+    }
+  }
+
+  // Si queda monto remanente, ajustar ingresos provenientes de cobros vinculados a la venta
+  if (remAjustar > 0) {
+    const { rows: ingresosCobros } = await client.query(`
+      SELECT i.id_ingreso, i.monto
+      FROM ingresos i
+      JOIN cxc_cobros co ON co.id_cobro = i.id_cobro
+      JOIN cuentas_por_cobrar cx ON cx.id_cxc = co.id_cxc
+      WHERE cx.id_venta = $1 AND i.estatus = 'activo'
+      ORDER BY i.id_ingreso DESC
+      FOR UPDATE
+    `, [d.id_venta]);
+
+    for (const ing of ingresosCobros) {
+      if (remAjustar <= 0) break;
+      const montoActual = Number(ing.monto);
+      const rebaja = Math.min(montoActual, remAjustar);
+      const nuevoMonto = Math.round((montoActual - rebaja) * 100) / 100;
+      remAjustar = Math.round((remAjustar - rebaja) * 100) / 100;
+
+      if (nuevoMonto <= 0) {
+        await client.query(`UPDATE ingresos SET monto = 0, estatus = 'cancelado' WHERE id_ingreso = $1`, [ing.id_ingreso]);
+      } else {
+        await client.query(`UPDATE ingresos SET monto = $1 WHERE id_ingreso = $2`, [nuevoMonto, ing.id_ingreso]);
+      }
+    }
+  }
+}

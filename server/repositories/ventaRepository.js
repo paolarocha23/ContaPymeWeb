@@ -68,8 +68,8 @@ export async function list(filtros = {}, empresaId = null) {
   if (filtros.estatus) where += ` AND LOWER(v.estatus) = ${add(filtros.estatus)}`;
   if (filtros.condiciones_pago) where += ` AND LOWER(v.condiciones_pago) = ${add(filtros.condiciones_pago)}`;
   if (filtros.forma_pago) where += ` AND LOWER(v.forma_pago) = ${add(filtros.forma_pago)}`;
-  if (filtros.desde) where += ` AND (v.fecha AT TIME ZONE 'UTC' AT TIME ZONE '${TZ}')::date >= ${add(filtros.desde)}::date`;
-  if (filtros.hasta) where += ` AND (v.fecha AT TIME ZONE 'UTC' AT TIME ZONE '${TZ}')::date <= ${add(filtros.hasta)}::date`;
+  if (filtros.desde) where += ` AND (v.fecha - INTERVAL '6 hours')::date >= ${add(filtros.desde)}::date`;
+  if (filtros.hasta) where += ` AND (v.fecha - INTERVAL '6 hours')::date <= ${add(filtros.hasta)}::date`;
   if (filtros.id_cliente) where += ` AND v.id_cliente = ${add(filtros.id_cliente)}`;
   if (filtros.id_usuario) where += ` AND v.id_usuario = ${add(filtros.id_usuario)}`;
 
@@ -79,7 +79,7 @@ export async function list(filtros = {}, empresaId = null) {
 
   const { rows } = await pool.query(`
     SELECT
-      v.id_venta, v.codigo, TO_CHAR(v.fecha, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS fecha, v.id_cliente, v.id_usuario,
+      v.id_venta, v.codigo, TO_CHAR(v.fecha - INTERVAL '6 hours', 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha, v.id_cliente, v.id_usuario,
       v.forma_pago, v.condiciones_pago,
       TO_CHAR(v.fecha_vencimiento, 'YYYY-MM-DD') AS fecha_vencimiento,
       v.subtotal, v.total, v.monto_pagado,
@@ -148,7 +148,7 @@ export async function stats(empresaId = null) {
 export async function findById(id, empresaId = null, db = pool) {
   const { rows } = await db.query(`
     SELECT
-      v.id_venta, v.codigo, TO_CHAR(v.fecha, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS fecha, v.id_cliente, v.id_usuario,
+      v.id_venta, v.codigo, TO_CHAR(v.fecha - INTERVAL '6 hours', 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha, v.id_cliente, v.id_usuario,
       v.forma_pago, v.condiciones_pago,
       TO_CHAR(v.fecha_vencimiento, 'YYYY-MM-DD') AS fecha_vencimiento,
       v.subtotal, v.total, v.monto_pagado,
@@ -181,7 +181,7 @@ export async function findItemsByVentaId(idVenta, db = pool) {
     SELECT
       dv.id_detalle_venta, dv.id_venta, dv.id_producto,
       p.codigo AS codigo_producto, p.nombre AS nombre_producto,
-      p.tipo AS tipo_producto, p.unidad_medida,
+      p.tipo, p.tipo AS tipo_producto, p.unidad_medida,
       dv.cantidad, dv.precio_unitario, dv.subtotal,
       COALESCE((
         SELECT SUM(dd.cantidad)
@@ -331,13 +331,46 @@ export async function obtenerCobrosDeVenta(client, idVenta) {
   return rows;
 }
 
-export async function obtenerCategoriaVentas(client, empresaId = null) {
+export async function obtenerCategoriaVentas(client, opciones = {}) {
+  const empresaId = typeof opciones === 'object' && opciones !== null ? opciones.empresaId : opciones;
+  const esServicio = Boolean(opciones?.esServicio);
+  const idCatProducto = opciones?.idCategoriaProducto;
+
+  // 1. Si se conoce la categoría del producto o servicio vendido y está activa, usarla
+  if (idCatProducto) {
+    const { rows } = await client.query(
+      `SELECT id_categoria FROM categorias WHERE id_categoria = $1 AND estatus = 1`,
+      [idCatProducto]
+    );
+    if (rows.length > 0) return rows[0].id_categoria;
+  }
+
+  // 2. Si es un servicio, buscar la categoría de Servicios / Instalaciones / Mantenimiento
+  if (esServicio) {
+    const { rows } = await client.query(`
+      SELECT id_categoria FROM categorias
+      WHERE estatus = 1 AND ($1::int IS NULL OR empresa_id = $1)
+      ORDER BY CASE
+        WHEN LOWER(TRIM(nombre)) LIKE '%servicio%' THEN 0
+        WHEN LOWER(TRIM(nombre)) LIKE '%instalac%' THEN 1
+        WHEN LOWER(TRIM(nombre)) LIKE '%mantenimiento%' THEN 2
+        ELSE 3
+      END, id_categoria ASC
+      LIMIT 1
+    `, [empresaId]);
+    if (rows.length > 0) return rows[0].id_categoria;
+  }
+
+  // 3. Para productos o ventas generales
   const { rows } = await client.query(`
     SELECT id_categoria FROM categorias
     WHERE estatus = 1 AND ($1::int IS NULL OR empresa_id = $1)
-    ORDER BY CASE WHEN LOWER(TRIM(nombre)) = 'ventas' THEN 0
-                  WHEN LOWER(TRIM(nombre)) = 'general' THEN 1 ELSE 2 END,
-             id_categoria ASC
+    ORDER BY CASE
+      WHEN LOWER(TRIM(nombre)) = 'ventas' THEN 0
+      WHEN LOWER(TRIM(nombre)) LIKE '%venta%' THEN 1
+      WHEN LOWER(TRIM(nombre)) LIKE '%ingreso%' THEN 2
+      ELSE 3
+    END, id_categoria ASC
     LIMIT 1
   `, [empresaId]);
   return rows[0]?.id_categoria || 1;
@@ -408,7 +441,7 @@ export async function contarDevoluciones(client, idVenta) {
 
 export async function listarDevoluciones(idVenta, db = pool) {
   const { rows } = await db.query(`
-    SELECT d.id_devolucion, TO_CHAR(d.fecha, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS fecha, d.tipo, d.observaciones,
+    SELECT d.id_devolucion, TO_CHAR(d.fecha - INTERVAL '6 hours', 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha, d.tipo, d.observaciones,
            u.nombre_usuario AS usuario,
            COALESCE(SUM(dd.cantidad * dd.precio_unitario), 0) AS monto
     FROM devoluciones_venta d

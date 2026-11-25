@@ -4,7 +4,8 @@ import pool from '../config/db.js';
  * Obtiene cuentas por cobrar vencidas o próximas a vencer.
  * Solo incluye cuentas con saldo pendiente mayor a cero.
  */
-export async function obtenerAlertasCxc(diasAnticipacion = 7, empresaId = null) {
+export async function obtenerAlertasCxc(diasAnticipacion = 30, empresaId = null) {
+    const dias = diasAnticipacion ? parseInt(diasAnticipacion, 10) : 30;
     const { rows } = await pool.query(`
     SELECT
       cxc.id_cxc,
@@ -40,11 +41,11 @@ export async function obtenerAlertasCxc(diasAnticipacion = 7, empresaId = null) 
     WHERE cxc.saldo_pendiente > 0
       AND cxc.fecha_vencimiento IS NOT NULL
       AND cxc.fecha_vencimiento <= CURRENT_DATE + $1::integer
-      AND ($2::int IS NULL OR cxc.empresa_id = $2)
+      AND ($2::int IS NULL OR cxc.empresa_id = $2 OR cxc.empresa_id IS NULL)
     ORDER BY
       cxc.fecha_vencimiento ASC,
       cxc.id_cxc DESC
-  `, [diasAnticipacion, empresaId]);
+  `, [dias, empresaId]);
 
     return rows;
 }
@@ -53,7 +54,8 @@ export async function obtenerAlertasCxc(diasAnticipacion = 7, empresaId = null) 
  * Obtiene cuentas por pagar vencidas o próximas a vencer.
  * Solo incluye cuentas con saldo pendiente mayor a cero.
  */
-export async function obtenerAlertasCxp(diasAnticipacion = 7, empresaId = null) {
+export async function obtenerAlertasCxp(diasAnticipacion = 30, empresaId = null) {
+    const dias = diasAnticipacion ? parseInt(diasAnticipacion, 10) : 30;
     const { rows } = await pool.query(`
     SELECT
       cxp.id_cxp,
@@ -80,11 +82,11 @@ export async function obtenerAlertasCxp(diasAnticipacion = 7, empresaId = null) 
     WHERE cxp.saldo_pendiente > 0
       AND cxp.fecha_vencimiento IS NOT NULL
       AND cxp.fecha_vencimiento <= CURRENT_DATE + $1::integer
-      AND ($2::int IS NULL OR cxp.empresa_id = $2)
+      AND ($2::int IS NULL OR cxp.empresa_id = $2 OR cxp.empresa_id IS NULL)
     ORDER BY
       cxp.fecha_vencimiento ASC,
       cxp.id_cxp DESC
-  `, [diasAnticipacion, empresaId]);
+  `, [dias, empresaId]);
 
     return rows;
 }

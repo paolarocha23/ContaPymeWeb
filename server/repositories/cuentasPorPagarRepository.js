@@ -101,7 +101,7 @@ export const obtenerCuentaPorId = async (id) => {
             p.telefono,
             p.correo,
             c.codigo AS codigo_compra,
-            c.fecha AS fecha_compra,
+            TO_CHAR(c.fecha - INTERVAL '6 hours', 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_compra,
             c.condiciones_pago
         FROM cuentas_por_pagar cp
         INNER JOIN proveedores p
@@ -120,7 +120,7 @@ export const obtenerPagos = async (idCxp) => {
         SELECT
             pg.id_pago,
             pg.id_cxp,
-            pg.fecha,
+            TO_CHAR(pg.fecha - INTERVAL '6 hours', 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha,
             pg.monto,
             pg.forma_pago,
             pg.observaciones,

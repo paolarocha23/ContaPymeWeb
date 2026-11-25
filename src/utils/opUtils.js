@@ -64,7 +64,8 @@ export const mesesOpciones = () => {
 export const TONO_ESTATUS = {
   pendiente_pago: 'amber', pendiente: 'amber',
   pago_parcial: 'blue', parcial: 'blue',
-  pagada: 'green', cancelada: 'red'
+  pagada: 'green', pagado: 'green', saldada: 'green', saldado: 'green',
+  cancelada: 'red', cancelado: 'red'
 };
 
 export const ETIQ_ESTATUS = {

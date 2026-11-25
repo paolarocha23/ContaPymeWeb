@@ -52,7 +52,7 @@ export async function obtenerGastos(filtros = {}, empresaId = null) {
   let consulta = `
     SELECT
       g.id_gasto,
-      g.fecha,
+      TO_CHAR(g.fecha - INTERVAL '6 hours', 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha,
       g.concepto,
       g.id_categoria,
       c.nombre AS categoria,
@@ -81,13 +81,13 @@ export async function obtenerGastos(filtros = {}, empresaId = null) {
   }
 
   if (fecha_inicio) {
-    consulta += ` AND g.fecha >= $${posicion}`;
+    consulta += ` AND (g.fecha - INTERVAL '6 hours')::date >= $${posicion}::date`;
     valores.push(fecha_inicio);
     posicion++;
   }
 
   if (fecha_fin) {
-    consulta += ` AND g.fecha < ($${posicion}::date + INTERVAL '1 day')`;
+    consulta += ` AND (g.fecha - INTERVAL '6 hours')::date <= $${posicion}::date`;
     valores.push(fecha_fin);
     posicion++;
   }
@@ -115,7 +115,7 @@ export async function obtenerGastoPorId(id, client = pool, bloquear = false) {
   const consulta = `
     SELECT
       g.id_gasto,
-      g.fecha,
+      TO_CHAR(g.fecha - INTERVAL '6 hours', 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha,
       g.concepto,
       g.id_categoria,
       c.nombre AS categoria,

@@ -109,12 +109,12 @@ export async function stockBajo(empresaId = null) {
   const { rows } = await pool.query(`
     SELECT ${COLUMNAS}
     FROM productos p
-    INNER JOIN categorias c ON c.id_categoria = p.id_categoria
+    LEFT JOIN categorias c ON c.id_categoria = p.id_categoria
     WHERE LOWER(p.tipo) = 'producto'
       AND p.estatus = 1
       AND p.stock_minimo IS NOT NULL
       AND COALESCE(p.stock, 0) <= p.stock_minimo
-      AND ($1::int IS NULL OR p.empresa_id = $1)
+      AND ($1::int IS NULL OR p.empresa_id = $1 OR p.empresa_id IS NULL)
     ORDER BY (COALESCE(p.stock, 0) - p.stock_minimo) ASC, p.nombre ASC
   `, [empresaId]);
 

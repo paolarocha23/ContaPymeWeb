@@ -6,7 +6,8 @@ import {
     obtenerReporteDetalleGastos,
     obtenerReporteDetalleInventario,
     obtenerReporteDetalleCuentasPorCobrar,
-    obtenerReporteDetalleCuentasPorPagar
+    obtenerReporteDetalleCuentasPorPagar,
+    obtenerReporteDetalleMovimientosInventario
 } from '../services/reportesService.js';
 
 
@@ -119,6 +120,22 @@ export const obtenerDetalleCuentasPorPagarController = async (req, res) => {
     return res.status(200).json({
         success: true,
         message: 'Detalle de cuentas por pagar obtenido correctamente',
+        data: resultado
+    });
+};
+
+// DETALLE DE MOVIMIENTOS DE INVENTARIO
+export const obtenerDetalleMovimientosInventarioController = async (req, res) => {
+    const { fecha_inicio, fecha_fin } = req.query;
+
+    const resultado = await obtenerReporteDetalleMovimientosInventario({
+        fecha_inicio,
+        fecha_fin
+    }, req.user?.empresa_id || null);
+
+    return res.status(200).json({
+        success: true,
+        message: 'Detalle de movimientos de inventario obtenido correctamente',
         data: resultado
     });
 };

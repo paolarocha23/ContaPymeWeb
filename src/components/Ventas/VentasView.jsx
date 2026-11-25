@@ -22,14 +22,21 @@ export const PILL_ESTATUS = {
 const fechaCorta = (f) =>
   f ? new Date(f).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/\./g, '') : '—';
 
-export default function VentasView() {
+export default function VentasView({ idVentaInicial = null }) {
   const { ventas, stats, loading, error, filtros, actualizarFiltros, recargar } = useVentas();
 
-  const [vista, setVista] = useState('lista'); // 'lista' | 'nueva'
-  const [idDetalle, setIdDetalle] = useState(null);
+  const [vista, setVista] = useState(idVentaInicial ? 'detalle' : 'lista'); // 'lista' | 'nueva' | 'detalle'
+  const [idDetalle, setIdDetalle] = useState(idVentaInicial || null);
   const [ticketActivo, setTicketActivo] = useState(null);
   const [vendedor, setVendedor] = useState('');
   const [pagina, setPagina] = useState(1);
+
+  useEffect(() => {
+    if (idVentaInicial) {
+      setIdDetalle(idVentaInicial);
+      setVista('detalle');
+    }
+  }, [idVentaInicial]);
 
   useEffect(() => { setPagina(1); }, [filtros, vendedor]);
 
@@ -176,11 +183,14 @@ export default function VentasView() {
             </select>
 
             <input
-              type="month"
+              type="date"
               className="table-pill-select"
-              value={mes}
-              onChange={(e) => cambiarMes(e.target.value)}
-              title="Mes"
+              value={filtros.desde || ''}
+              onChange={(e) => {
+                const val = e.target.value;
+                actualizarFiltros({ desde: val, hasta: val });
+              }}
+              title="Filtrar por fecha"
             />
 
             {hayFiltros && (

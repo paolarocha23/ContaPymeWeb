@@ -16,7 +16,7 @@ export async function obtenerCuentas(filtros = {}, empresaId = null) {
       c.nombre_cliente,
       CONCAT_WS(' ', c.apellido_paterno, c.apellido_materno) AS apellidos,
       v.codigo AS codigo_venta,
-      v.fecha AS fecha_venta,
+      TO_CHAR(v.fecha - INTERVAL '6 hours', 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha_venta,
       CASE
         WHEN LOWER(TRIM(cxc.estatus)) = 'cancelada' THEN 'Cancelada'
         WHEN COALESCE(cxc.saldo_pendiente, 0) <= 0
@@ -117,7 +117,7 @@ export async function obtenerPagos(id) {
     SELECT
       p.id_cobro,
       p.id_cxc,
-      p.fecha,
+      TO_CHAR(p.fecha - INTERVAL '6 hours', 'YYYY-MM-DD"T"HH24:MI:SS') AS fecha,
       p.monto,
       p.forma_pago,
       p.observaciones,

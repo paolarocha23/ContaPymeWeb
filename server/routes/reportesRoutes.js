@@ -8,7 +8,8 @@ import {
     obtenerDetalleGastosController,
     obtenerDetalleInventarioController,
     obtenerDetalleCuentasPorCobrarController,
-    obtenerDetalleCuentasPorPagarController
+    obtenerDetalleCuentasPorPagarController,
+    obtenerDetalleMovimientosInventarioController
 } from '../controllers/reportesController.js';
 
 import {
@@ -59,6 +60,11 @@ router.get(
 router.get(
     '/inventario/detalle',
     asyncHandler(obtenerDetalleInventarioController)
+);
+
+router.get(
+    '/inventario/movimientos',
+    asyncHandler(obtenerDetalleMovimientosInventarioController)
 );
 
 router.get(
