@@ -16,7 +16,8 @@ export default defineConfig({
     manifest: {
       name: 'ContaPyme',
       short_name: 'ContaPyme',
-      description: 'ContaPyme',
+      description: 'Sistema de gestión y control empresarial',
+      lang: 'es',
       theme_color: '#ffffff',
     },
 
@@ -28,7 +29,7 @@ export default defineConfig({
     },
 
     devOptions: {
-      enabled: false,
+      enabled: true,
       navigateFallback: 'index.html',
       suppressWarnings: true,
       type: 'module',
