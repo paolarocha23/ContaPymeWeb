@@ -30,3 +30,19 @@ Para probarlo:
 
 Las peticiones a `/api` **no** se cachean: necesitan el servidor y contienen datos por usuario.
 Cuando no hay red, se muestra un aviso y un mensaje de error claro en lugar de `Failed to fetch`.
+
+## URL de la API
+
+El frontend usa `/api` por defecto (proxy de Vite a `localhost:5001`). Para apuntar a otro
+backend, define `VITE_API_URL` antes de compilar:
+
+```bash
+# .env
+VITE_API_URL=https://tu-backend.onrender.com/api
+```
+
+En Netlify: **Site configuration → Environment variables → Add variable**,
+`VITE_API_URL` con la URL completa terminada en `/api`, y luego **rebuild/redeploy**.
+Las variables `VITE_*` se incorporan al bundle en el build, así que cambiar el valor
+sin reconstruir no surte efecto. El backend debe estar en HTTPS (si el frontend lo está)
+y permitir CORS desde el dominio de Netlify.

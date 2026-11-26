@@ -1,4 +1,7 @@
-const API_BASE = '/api';
+// En desarrollo se usa el proxy de Vite (/api -> localhost:5001).
+// En producción define VITE_API_URL en Netlify, p. ej. https://tu-backend.onrender.com/api
+const API_BASE = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
+// const API_BASE = 'https://contapymeserver.onrender.com/api';
 
 export const api = {
   getToken() {
