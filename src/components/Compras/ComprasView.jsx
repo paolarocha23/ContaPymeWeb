@@ -5,7 +5,7 @@ import { useCompras, POR_PAGINA } from '../../hooks/useCompras';
 import {
   formatMoney, formatFechaCorta, formatFechaISO, mesesOpciones, ETIQ_ESTATUS, TONO_ESTATUS, extraerLista
 } from '../../utils/opUtils';
-import { Pill, StatCard, Pagination } from './../Operaciones/shared';
+import { Pill, StatCard, Pagination } from './../Operaciones/Shared';
 import NuevaCompraView from './NuevaCompraView';
 import CompraDetailView from './CompraDetailView';
 import CompraCancelModal from './CompraCancelModal';

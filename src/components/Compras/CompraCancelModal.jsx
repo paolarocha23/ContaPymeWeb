@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Ban, Boxes, History, Wallet, RotateCw, CircleCheck, CircleAlert } from 'lucide-react';
 import { api } from '../../services/api';
 import { pad4, extraerLista } from '../../utils/opUtils';
-import { Modal } from '../Operaciones/shared';
+import { Modal } from '../Operaciones/Shared';
 import '../Operaciones/Operaciones.css';
 
 export default function CompraCancelModal({ idCompra, onClose, onDone }) {

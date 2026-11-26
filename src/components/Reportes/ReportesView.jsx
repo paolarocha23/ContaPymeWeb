@@ -29,7 +29,7 @@ import {
     suma,
     CAMPO_FECHADO
 } from './reportesAnalisis';
-import './reportes.css';
+import './Reportes.css';
 
 const SECCIONES = [
     { id: 'ventas', nombre: 'Ventas', icono: ShoppingCart, tipos: ['ventas'] },

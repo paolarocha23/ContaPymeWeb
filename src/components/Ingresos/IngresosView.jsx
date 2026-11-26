@@ -21,7 +21,7 @@ import IngresoCancelModal from './IngresoCancelModal';
 import IngresoDetailView from './IngresoDetailView';
 
 import '../Clientes/Clientes.css';
-import './Ingresos.css';
+import './ingresos.css';
 
 function FiltroSelect({ label, value, onChange, children }) {
   return (

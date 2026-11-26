@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { formatMoney, formatFechaCorta, formatFechaISO, redondear, unMesDespues, hoyISO } from '../../utils/opUtils';
-import { Pill, Seg, Stepper } from '../Operaciones/shared';
+import { Pill, Seg, Stepper } from '../Operaciones/Shared';
 import '../Operaciones/Operaciones.css';
 
 export default function NuevaCompraView({ onBack, onSuccess }) {

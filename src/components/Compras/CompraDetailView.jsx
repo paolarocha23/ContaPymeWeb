@@ -7,7 +7,7 @@ import { api } from '../../services/api';
 import {
   formatMoney, formatFechaCorta, formatFechaISO, pad4, TONO_ESTATUS, ETIQ_ESTATUS, extraerLista
 } from '../../utils/opUtils';
-import { Pill, StatCard } from '../Operaciones/shared';
+import { Pill, StatCard } from '../Operaciones/Shared';
 import CompraCancelModal from './CompraCancelModal';
 import CompraDevolucionModal from './CompraDevolucionModal';
 import '../Operaciones/Operaciones.css';

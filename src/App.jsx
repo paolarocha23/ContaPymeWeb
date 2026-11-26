@@ -12,7 +12,7 @@ import BitacoraView from './components/BitacoraView';
 import InactivityModal from './components/InactivityModal';
 
 import ClientesView from './components/Clientes/ClientesView';
-import ProveedoresView from './components/Proveedores/ProveedoresView';
+import ProveedoresView from './components/Proveedores/proveedoresView';
 import CategoriasView from './components/Categorias/CategoriasView';
 import ProductosView from './components/ProductosyServicio/ProductosView';
 

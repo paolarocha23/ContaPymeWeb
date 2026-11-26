@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Undo2, ArrowRight, Boxes, Wallet, Banknote } from 'lucide-react';
 import { api } from '../../services/api';
 import { formatMoney, redondear, pad4, extraerLista } from '../../utils/opUtils';
-import { Modal, ModalHead, Seg, Stepper } from '../Operaciones/shared';
+import { Modal, ModalHead, Seg, Stepper } from '../Operaciones/Shared';
 import '../Operaciones/Operaciones.css';
 
 /**

@@ -14,3 +14,19 @@ The React Compiler is not enabled on this template because of its impact on dev 
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+
+## PWA / modo sin conexión
+
+El Service Worker se genera automáticamente con `vite-plugin-pwa` al ejecutar `npm run build`
+(y también en desarrollo, porque `devOptions.enabled` está activo). Precarga la interfaz,
+sus imágenes y las fuentes de Google, y responde las navegaciones con `index.html` cacheado.
+
+Para probarlo:
+
+1. `npm run build`
+2. `npm run preview`
+3. Abrir DevTools → Application → Service Workers y marcar **Offline**.
+4. Recargar: la landing y el login deben seguir funcionando.
+
+Las peticiones a `/api` **no** se cachean: necesitan el servidor y contienen datos por usuario.
+Cuando no hay red, se muestra un aviso y un mensaje de error claro en lugar de `Failed to fetch`.

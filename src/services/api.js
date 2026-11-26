@@ -46,10 +46,19 @@ export const api = {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${API_BASE}${endpoint}`, {
-      ...options,
-      headers
-    });
+    let response;
+    try {
+      response = await fetch(`${API_BASE}${endpoint}`, {
+        ...options,
+        headers
+      });
+    } catch (err) {
+      // fetch() lanza TypeError cuando falla la red (sin conexión, DNS, etc.).
+      const offlineError = new Error('Sin conexión. Revisa tu red e inténtalo de nuevo.');
+      offlineError.code = 'OFFLINE';
+      offlineError.cause = err;
+      throw offlineError;
+    }
 
     const data = await response.json().catch(() => ({
       success: false,

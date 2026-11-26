@@ -1,11 +1,27 @@
 import './PWABadge.css'
 
+import { useEffect, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 
 function PWABadge() {
   // periodic sync is disabled, change the value to enable it, the period is in milliseconds
 // You can remove onRegisteredSW callback and registerPeriodicSync function
   const period = 0
+  const [isOnline, setIsOnline] = useState(
+    () => typeof navigator === 'undefined' || navigator.onLine
+  )
+
+  useEffect(() => {
+    const updateOnlineStatus = () => setIsOnline(navigator.onLine)
+
+    window.addEventListener('online', updateOnlineStatus)
+    window.addEventListener('offline', updateOnlineStatus)
+
+    return () => {
+      window.removeEventListener('online', updateOnlineStatus)
+      window.removeEventListener('offline', updateOnlineStatus)
+    }
+  }, [])
 
   const {
     offlineReady: [offlineReady, setOfflineReady],
@@ -34,10 +50,15 @@ function PWABadge() {
   }
 
   return (
-    <div className="PWABadge" role="alert" aria-labelledby="toast-message">
+    <div className="PWABadge">
+      { !isOnline && (
+        <div className="PWABadge-offline" role="status">
+          Sin conexión. La interfaz sigue disponible; los datos se actualizarán al reconectar.
+        </div>
+      ) }
       { (offlineReady || needRefresh)
       && (
-        <div className="PWABadge-toast">
+        <div className="PWABadge-toast" role="alert" aria-labelledby="toast-message">
           <div className="PWABadge-message">
             { offlineReady
               ? <span id="toast-message">La app está lista para funcionar sin conexión</span>
