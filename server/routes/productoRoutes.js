@@ -27,10 +27,21 @@ router.get('/:id', getProductoById);
 router.get('/:id/operaciones', getOperaciones);
 
 // Administrar: solo Administrador
-router.post('/', requireAdmin, createProducto);
-router.put('/:id', requireAdmin, updateProducto);
-router.patch('/:id/status', requireAdmin, toggleProductoStatus);
-router.delete('/:id', requireAdmin, deleteProducto);
+const requireAdminOEncargado = (req, res, next) => {
+  const rol = String(req.user?.rol_nombre || req.user?.rol || '').toLowerCase();
+  if (rol === 'administrador' || rol === 'encargado' || rol === 'admin') {
+    return next();
+  }
+  return res.status(403).json({
+    success: false,
+    message: 'Acceso denegado: solo Administrador o Encargado pueden modificar productos.'
+  });
+};
+
+router.post('/', requireAdminOEncargado, createProducto);
+router.put('/:id', requireAdminOEncargado, updateProducto);
+router.patch('/:id/status', requireAdminOEncargado, toggleProductoStatus);
+router.delete('/:id', requireAdminOEncargado, deleteProducto);
 
 router.use(errorHandler);
 

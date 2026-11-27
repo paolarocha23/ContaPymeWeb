@@ -244,6 +244,23 @@ export const obtenerDetalleVentas = async (filtros = {}, empresaId = null) => {
         ),
         ''
       ) AS nombre_cliente,
+      v.id_usuario,
+      COALESCE(
+        NULLIF(
+          TRIM(
+            CONCAT_WS(
+              ' ',
+              NULLIF(TRIM(u.nombre), ''),
+              NULLIF(TRIM(u.apellido_paterno), ''),
+              NULLIF(TRIM(u.apellido_materno), '')
+            )
+          ),
+          ''
+        ),
+        u.nombre_usuario,
+        'Sin asignar'
+      ) AS nombre_vendedor,
+      u.nombre_usuario AS username_vendedor,
       v.total,
       v.monto_pagado,
       v.condiciones_pago,
@@ -252,6 +269,8 @@ export const obtenerDetalleVentas = async (filtros = {}, empresaId = null) => {
     FROM ventas v
     LEFT JOIN clientes cl
       ON cl.id_cliente = v.id_cliente
+    LEFT JOIN usuarios u
+      ON u.id_usuario = v.id_usuario
     ${where}
     ORDER BY v.fecha DESC, v.id_venta DESC
     `,
@@ -542,5 +561,41 @@ export const obtenerDetalleMovimientosInventario = async (filtros = {}, empresaI
   `, valores);
 
   return rows;
+};
+
+// TOP VENDEDOR DE LA SEMANA
+export const obtenerTopVendedorSemana = async (empresaId = null) => {
+  const { rows } = await pool.query(`
+    SELECT
+      v.id_usuario,
+      COALESCE(
+        NULLIF(
+          TRIM(
+            CONCAT_WS(
+              ' ',
+              NULLIF(TRIM(u.nombre), ''),
+              NULLIF(TRIM(u.apellido_paterno), ''),
+              NULLIF(TRIM(u.apellido_materno), '')
+            )
+          ),
+          ''
+        ),
+        u.nombre_usuario,
+        'Usuario sin nombre'
+      ) AS nombre_usuario,
+      u.nombre_usuario AS username,
+      COUNT(v.id_venta)::int AS total_ventas,
+      COALESCE(SUM(v.total), 0)::numeric AS monto_total
+    FROM ventas v
+    JOIN usuarios u ON u.id_usuario = v.id_usuario
+    WHERE v.fecha >= date_trunc('week', CURRENT_DATE)
+      AND v.fecha < date_trunc('week', CURRENT_DATE) + INTERVAL '7 days'
+      AND ($1::int IS NULL OR v.empresa_id = $1)
+    GROUP BY v.id_usuario, u.nombre, u.apellido_paterno, u.apellido_materno, u.nombre_usuario
+    ORDER BY monto_total DESC, total_ventas DESC
+    LIMIT 1;
+  `, [empresaId]);
+
+  return rows[0] || null;
 };
 

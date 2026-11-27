@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { api } from '../../services/api';
 import './Dashboard.css';
+import AsistenteFinanciero from './AsistenteFinanciero';
 
 const DEFAULT_SPARKS = {
   ventas: 'M2 28 C18 26 22 18 34 16 S52 22 62 10 82 16 98 4',
@@ -415,6 +416,9 @@ export default function Dashboard({ onNavigate }) {
       <section className="cpy-metrics-grid" aria-label="Resumen financiero">
         {metrics.map((metric) => <MetricCard key={metric.title} metric={metric} />)}
       </section>
+
+      {/* Asistente Financiero Inteligente */}
+      <AsistenteFinanciero />
 
       <section className="cpy-overview-grid">
         <article className="cpy-card cpy-sales-card">

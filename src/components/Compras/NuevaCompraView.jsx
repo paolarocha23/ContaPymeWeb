@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   ArrowLeft, Check, Search, Plus, Trash2, Truck, Calendar, Info, Package, Wrench,
-  Banknote, CreditCard, Landmark, Wallet, CircleAlert, RotateCw
+  Banknote, CreditCard, Landmark, Wallet, CircleAlert, RotateCw, X
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { formatMoney, formatFechaCorta, formatFechaISO, redondear, unMesDespues, hoyISO } from '../../utils/opUtils';
@@ -20,6 +20,8 @@ export default function NuevaCompraView({ onBack, onSuccess }) {
   const [folio, setFolio] = useState('');
 
   const [idProveedor, setIdProveedor] = useState('');
+  const [busquedaProveedor, setBusquedaProveedor] = useState('');
+  const [abiertoProveedor, setAbiertoProveedor] = useState(false);
   const [condiciones, setCondiciones] = useState('contado');
   const [fechaVenc, setFechaVenc] = useState(unMesDespues());
   const [formaPago, setFormaPago] = useState('efectivo');
@@ -75,6 +77,26 @@ export default function NuevaCompraView({ onBack, onSuccess }) {
     else if (pagado > 0) { tono = 'blue'; txt = 'Pago parcial'; }
     else { tono = 'amber'; txt = 'Pendiente de pago'; }
   }
+
+  /* ---------- Proveedor ---------- */
+  const proveedorSeleccionado = useMemo(() => {
+    if (!idProveedor) return null;
+    return proveedores.find((p) => String(p.id_proveedor ?? p.id) === String(idProveedor));
+  }, [proveedores, idProveedor]);
+
+  const proveedoresFiltrados = useMemo(() => {
+    const qp = busquedaProveedor.trim().toLowerCase();
+    if (!qp) return proveedores.slice(0, 8);
+    return proveedores
+      .filter((p) => {
+        const empresa = (p.nombre_empresa || p.nombre || '').toLowerCase();
+        const contacto = (p.nombre_contacto || '').toLowerCase();
+        const rfc = String(p.rfc || '').toLowerCase();
+        const tel = String(p.telefono || '').toLowerCase();
+        return empresa.includes(qp) || contacto.includes(qp) || rfc.includes(qp) || tel.includes(qp);
+      })
+      .slice(0, 8);
+  }, [proveedores, busquedaProveedor]);
 
   /* ---------- Productos ---------- */
   const q = busqueda.trim().toLowerCase();
@@ -166,16 +188,121 @@ export default function NuevaCompraView({ onBack, onSuccess }) {
             <div className="op-grid">
               <div>
                 <label className="op-label">Proveedor <i>*</i></label>
-                <div className="op-field">
-                  <Truck size={16} />
-                  <select className={`op-input${errProveedor ? ' err' : ''}`} value={idProveedor} onChange={(e) => setIdProveedor(e.target.value)}>
-                    <option value="">Selecciona un proveedor</option>
-                    {proveedores.map((p) => {
-                      const id = p.id_proveedor ?? p.id;
-                      return <option key={id} value={id}>{p.nombre_empresa || p.nombre}</option>;
-                    })}
-                  </select>
-                </div>
+                {proveedorSeleccionado ? (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 12px',
+                      background: '#EEF2FC',
+                      border: '1px solid #C7D7FE',
+                      borderRadius: '12px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <Truck size={18} style={{ color: '#142A95', flexShrink: 0 }} />
+                      <div>
+                        <b style={{ display: 'block', fontSize: '13px', color: '#0B132B' }}>
+                          {proveedorSeleccionado.nombre_empresa || proveedorSeleccionado.nombre}
+                        </b>
+                        <small style={{ fontSize: '11px', color: '#6B7280' }}>
+                          {proveedorSeleccionado.nombre_contacto ? `Contacto: ${proveedorSeleccionado.nombre_contacto} · ` : ''}
+                          {proveedorSeleccionado.telefono ? `Tel: ${proveedorSeleccionado.telefono}` : ''}
+                        </small>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIdProveedor('');
+                        setBusquedaProveedor('');
+                        setAbiertoProveedor(true);
+                      }}
+                      style={{
+                        border: 'none',
+                        background: '#fff',
+                        color: '#6B7280',
+                        width: 26,
+                        height: 26,
+                        borderRadius: '50%',
+                        display: 'grid',
+                        placeItems: 'center',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.06)'
+                      }}
+                      title="Cambiar proveedor"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="op-field" style={{ position: 'relative' }}>
+                    <Search size={16} />
+                    <input
+                      className={`op-input${errProveedor ? ' err' : ''}`}
+                      placeholder="Buscar proveedor por empresa o contacto..."
+                      value={busquedaProveedor}
+                      onFocus={() => setAbiertoProveedor(true)}
+                      onBlur={() => setTimeout(() => setAbiertoProveedor(false), 200)}
+                      onChange={(e) => {
+                        setBusquedaProveedor(e.target.value);
+                        setAbiertoProveedor(true);
+                      }}
+                    />
+                    {busquedaProveedor && (
+                      <button
+                        type="button"
+                        onClick={() => setBusquedaProveedor('')}
+                        style={{
+                          position: 'absolute',
+                          right: 12,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          border: 'none',
+                          background: 'transparent',
+                          color: '#9AA1B8',
+                          cursor: 'pointer',
+                          padding: 2
+                        }}
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+
+                    {abiertoProveedor && (
+                      <div className="op-dd" onMouseDown={(e) => e.preventDefault()}>
+                        {proveedoresFiltrados.length === 0 ? (
+                          <div className="op-dd-empty">No se encontraron proveedores que coincidan con "{busquedaProveedor}".</div>
+                        ) : (
+                          proveedoresFiltrados.map((p) => {
+                            const pid = p.id_proveedor ?? p.id;
+                            const emp = p.nombre_empresa || p.nombre;
+                            return (
+                              <button
+                                type="button"
+                                key={pid}
+                                onClick={() => {
+                                  setIdProveedor(String(pid));
+                                  setBusquedaProveedor('');
+                                  setAbiertoProveedor(false);
+                                }}
+                              >
+                                <span>
+                                  <b>{emp}</b>
+                                  <small>
+                                    {p.nombre_contacto ? `Contacto: ${p.nombre_contacto} · ` : ''}
+                                    {p.telefono || 'Sin teléfono'}
+                                  </small>
+                                </span>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {errProveedor && <div className="op-err"><CircleAlert size={13} />{errProveedor}</div>}
               </div>
 
@@ -300,6 +427,10 @@ export default function NuevaCompraView({ onBack, onSuccess }) {
             )}
             <div className="op-sum-row" style={{ borderBottom: 'none' }}><span>Estatus resultante</span><Pill tone={tono}>{txt}</Pill></div>
             <div className="op-sum-total" style={{ borderTop: '1px solid #EEF2FB' }}><span>Total</span><strong>{formatMoney(total)}</strong></div>
+            <div className="op-sum-row" style={{ borderBottom: 'none', paddingTop: 8, marginTop: 4, borderTop: '1px dashed #dbe2f4' }}>
+              <span style={{ fontWeight: 600, color: saldo > 0 ? '#b45309' : '#15803d' }}>Saldo pendiente</span>
+              <b style={{ fontSize: '15px', color: saldo > 0 ? '#b45309' : '#15803d' }}>{formatMoney(saldo)}</b>
+            </div>
           </div>
 
           <div className="content-box op-card op-auto">

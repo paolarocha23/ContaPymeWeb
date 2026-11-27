@@ -12,7 +12,8 @@ import {
     Download,
     RotateCw,
     CalendarDays,
-    ChevronDown
+    ChevronDown,
+    Award
 } from 'lucide-react';
 
 import { api } from '../../services/api';
@@ -21,6 +22,7 @@ import { exportarResumenGeneralExcel } from '../../utils/exportExcel';
 import ReportesGraficas from './ReportesGraficas';
 import ReportesTablas from './ReportesTablas';
 import {
+    formatoMoneda,
     aISO,
     rangoPeriodo,
     periodoAnterior,
@@ -321,11 +323,89 @@ export default function ReportesView() {
                                     <div style={{ minWidth: 0 }}>
                                         <small>{k.titulo}</small>
                                         <b className={k.tono}>{k.valor}</b>
+                                        {k.subvalor && (
+                                            <span style={{ display: 'block', fontSize: '11px', color: '#6B7280', marginTop: 2, fontWeight: 600 }}>
+                                                {k.subvalor}
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
                             );
                         })}
                     </div>
+
+                    {/* Banner destacado: Usuario con más ventas de la semana */}
+                    {seccion === 'ventas' && (reportes?.top_vendedor_semana || analisis.topVendedorSemana) && (
+                        <div
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                flexWrap: 'wrap',
+                                gap: 14,
+                                padding: '16px 20px',
+                                background: 'linear-gradient(135deg, #f0f4ff 0%, #e8effe 100%)',
+                                border: '1px solid #c7d7fe',
+                                borderRadius: '16px',
+                                marginBottom: 16
+                            }}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                                <div
+                                    style={{
+                                        width: 44,
+                                        height: 44,
+                                        borderRadius: 12,
+                                        background: '#142a95',
+                                        color: '#fff',
+                                        display: 'grid',
+                                        placeItems: 'center',
+                                        flexShrink: 0,
+                                        boxShadow: '0 4px 10px rgba(20,42,149,0.25)'
+                                    }}
+                                >
+                                    <Award size={24} />
+                                </div>
+                                <div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <span
+                                            style={{
+                                                fontSize: '11px',
+                                                fontWeight: 800,
+                                                textTransform: 'uppercase',
+                                                letterSpacing: '0.05em',
+                                                color: '#142a95',
+                                                background: '#dbeafe',
+                                                padding: '2px 8px',
+                                                borderRadius: 6
+                                            }}
+                                        >
+                                            Top vendedor de la semana
+                                        </span>
+                                        <span style={{ fontSize: '12px', color: '#64748b' }}>
+                                            Mayor volumen de ventas registradas
+                                        </span>
+                                    </div>
+                                    <h4 style={{ margin: '4px 0 0', fontSize: '16px', fontWeight: 800, color: '#0f172a' }}>
+                                        {(reportes?.top_vendedor_semana || analisis.topVendedorSemana)?.nombre_usuario}
+                                    </h4>
+                                </div>
+                            </div>
+
+                            <div style={{ textAlign: 'right', marginLeft: 'auto' }}>
+                                <div style={{ fontSize: '18px', fontWeight: 800, color: '#142a95' }}>
+                                    {formatoMoneda(
+                                        (reportes?.top_vendedor_semana || analisis.topVendedorSemana)?.monto_total ||
+                                        (reportes?.top_vendedor_semana || analisis.topVendedorSemana)?.monto
+                                    )}
+                                </div>
+                                <small style={{ fontSize: '12px', color: '#475569', fontWeight: 600 }}>
+                                    {(reportes?.top_vendedor_semana || analisis.topVendedorSemana)?.total_ventas ||
+                                     (reportes?.top_vendedor_semana || analisis.topVendedorSemana)?.ventas} ventas completadas
+                                </small>
+                            </div>
+                        </div>
+                    )}
 
                     <ReportesGraficas grafica={analisis.grafica} ranking={analisis.ranking} />
 

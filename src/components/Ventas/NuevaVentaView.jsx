@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   ArrowLeft, Check, User, Banknote, CreditCard, Wallet, CalendarClock, Calendar, Info, Search,
-  Plus, Minus, Trash2, Package, Wrench, CircleAlert, RotateCw
+  Plus, Minus, Trash2, Package, Wrench, CircleAlert, RotateCw, X
 } from 'lucide-react';
 import { api } from '../../services/api';
 import { unMesDespues, construirTicket, guardarTicket, formatMoney } from '../../utils/ventasUtils';
@@ -19,6 +19,8 @@ export default function NuevaVentaView({ onBack, onSuccess }) {
 
   // Datos de la venta
   const [idCliente, setIdCliente] = useState('');
+  const [busquedaCliente, setBusquedaCliente] = useState('');
+  const [abiertoCliente, setAbiertoCliente] = useState(false);
   const [formaPago, setFormaPago] = useState('efectivo');
   const [condiciones, setCondiciones] = useState('contado');
   const [vencimiento, setVencimiento] = useState(unMesDespues());
@@ -81,6 +83,25 @@ export default function NuevaVentaView({ onBack, onSuccess }) {
     else if (montoPagado > 0) estatus = ['blue', 'Pago parcial'];
     else estatus = ['amber', 'Pendiente de pago'];
   }
+
+  // ---------- Clientes y buscador ----------
+  const clienteSeleccionado = useMemo(
+    () => clientes.find((c) => String(c.id_cliente) === String(idCliente)),
+    [clientes, idCliente]
+  );
+
+  const clientesFiltrados = useMemo(() => {
+    const q = busquedaCliente.trim().toLowerCase();
+    if (!q) return clientes.slice(0, 8);
+    return clientes
+      .filter((c) => {
+        const nom = (c.nombre_completo || `${c.nombre || c.nombre_cliente || ''} ${c.apellido_paterno || ''} ${c.apellido_materno || ''}`).toLowerCase();
+        const rfc = String(c.rfc || '').toLowerCase();
+        const tel = String(c.telefono || '').toLowerCase();
+        return nom.includes(q) || rfc.includes(q) || tel.includes(q);
+      })
+      .slice(0, 8);
+  }, [clientes, busquedaCliente]);
 
   // ---------- Buscador ----------
   const resultados = useMemo(() => {
@@ -214,17 +235,132 @@ export default function NuevaVentaView({ onBack, onSuccess }) {
               <div className="ven-grid-1">
                 <div className="ven-field">
                   <label htmlFor="v-cliente">Cliente{clienteObligatorio && <i>*</i>}</label>
-                  <div className={`ven-input${errCliente ? ' err' : ''}`}>
-                    <User size={16} />
-                    <select id="v-cliente" value={idCliente} onChange={(e) => setIdCliente(e.target.value)}>
-                      <option value="">{clienteObligatorio ? 'Selecciona un cliente' : 'Público en general'}</option>
-                      {clientes.map((c) => (
-                        <option key={c.id_cliente} value={c.id_cliente}>
-                          {c.nombre_completo || c.nombre || c.nombre_cliente}{c.rfc ? ` (${c.rfc})` : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                  {clienteSeleccionado ? (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 12px',
+                        background: '#EEF2FC',
+                        border: '1px solid #C7D7FE',
+                        borderRadius: '12px'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <User size={18} style={{ color: '#142A95', flexShrink: 0 }} />
+                        <div>
+                          <b style={{ display: 'block', fontSize: '13px', color: '#0B132B' }}>
+                            {clienteSeleccionado.nombre_completo || clienteSeleccionado.nombre || clienteSeleccionado.nombre_cliente}
+                          </b>
+                          <small style={{ fontSize: '11px', color: '#6B7280' }}>
+                            {clienteSeleccionado.rfc ? `RFC: ${clienteSeleccionado.rfc} · ` : ''}
+                            {clienteSeleccionado.telefono ? `Tel: ${clienteSeleccionado.telefono}` : 'Sin teléfono'}
+                          </small>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIdCliente('');
+                          setBusquedaCliente('');
+                          setAbiertoCliente(true);
+                        }}
+                        style={{
+                          border: 'none',
+                          background: '#fff',
+                          color: '#6B7280',
+                          width: 26,
+                          height: 26,
+                          borderRadius: '50%',
+                          display: 'grid',
+                          placeItems: 'center',
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.06)'
+                        }}
+                        title="Cambiar cliente"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ position: 'relative' }}>
+                      <div className={`ven-input${errCliente ? ' err' : ''}`}>
+                        <Search size={16} />
+                        <input
+                          id="v-cliente"
+                          value={busquedaCliente}
+                          placeholder={clienteObligatorio ? "Buscar cliente por nombre, RFC o teléfono..." : "Buscar cliente o dejar en Público en general..."}
+                          onChange={(e) => {
+                            setBusquedaCliente(e.target.value);
+                            setAbiertoCliente(true);
+                          }}
+                          onFocus={() => setAbiertoCliente(true)}
+                          onBlur={() => setTimeout(() => setAbiertoCliente(false), 200)}
+                        />
+                        {busquedaCliente && (
+                          <button
+                            type="button"
+                            onClick={() => setBusquedaCliente('')}
+                            style={{ border: 'none', background: 'transparent', color: '#9AA1B8', cursor: 'pointer', padding: 4 }}
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+
+                      {abiertoCliente && (
+                        <div className="ven-results" style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 30 }}>
+                          {!clienteObligatorio && (
+                            <button
+                              type="button"
+                              className="ven-result"
+                              onMouseDown={() => {
+                                setIdCliente('');
+                                setBusquedaCliente('');
+                                setAbiertoCliente(false);
+                              }}
+                            >
+                              <span className="ven-line-ico"><User size={16} /></span>
+                              <span>
+                                <b>Público en general</b>
+                                <small>Venta directa sin asociar a cuenta de cliente</small>
+                              </span>
+                            </button>
+                          )}
+                          {clientesFiltrados.map((c) => {
+                            const nom = c.nombre_completo || `${c.nombre || c.nombre_cliente || ''} ${c.apellido_paterno || ''}`.trim();
+                            return (
+                              <button
+                                type="button"
+                                key={c.id_cliente}
+                                className="ven-result"
+                                onMouseDown={() => {
+                                  setIdCliente(String(c.id_cliente));
+                                  setBusquedaCliente('');
+                                  setAbiertoCliente(false);
+                                }}
+                              >
+                                <span className="ven-line-ico"><User size={16} /></span>
+                                <span>
+                                  <b>{nom}</b>
+                                  <small>
+                                    {c.rfc ? `RFC: ${c.rfc} · ` : ''}
+                                    {c.telefono ? `Tel: ${c.telefono}` : 'Sin teléfono'}
+                                  </small>
+                                </span>
+                              </button>
+                            );
+                          })}
+                          {clientesFiltrados.length === 0 && (
+                            <div style={{ padding: '12px 14px', fontSize: '12px', color: '#6B7280', textAlign: 'center' }}>
+                              No se encontraron clientes que coincidan con "{busquedaCliente}"
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {errCliente && <div className="ven-err"><CircleAlert size={13} />{errCliente}</div>}
                 </div>
 

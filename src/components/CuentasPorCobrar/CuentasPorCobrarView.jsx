@@ -62,12 +62,12 @@ const obtenerEstado = (cuenta) => {
 };
 
 const claseEstado = (estado) => ({
-  Saldada: 'cxc-status-paid',
-  Pendiente: 'cxc-status-pending',
-  Parcial: 'cxc-status-partial',
-  Vencida: 'cxc-status-overdue',
-  Cancelada: 'cxc-status-cancelled'
-}[estado] || 'cxc-status-pending');
+  Saldada: 'badge-active',
+  Pendiente: 'badge-custom',
+  Parcial: 'badge-encargado',
+  Vencida: 'badge-inactive',
+  Cancelada: 'badge-inactive'
+}[estado] || 'badge-inactive');
 
 export default function CuentasPorCobrarView() {
   const {
@@ -247,25 +247,29 @@ export default function CuentasPorCobrarView() {
         </div>
       )}
 
-      <div className="cxc-stats">
+      <div className="stat-card-grid">
         {indicadores.map((item) => {
           const Icono = item.icono;
+          const esAlerta = item.titulo.toLowerCase().includes('vencid');
 
           return (
-            <article className="cxc-stat-card" key={item.titulo}>
-              <div className="cxc-stat-icon">
-                <Icono size={21} />
+            <div className="stat-card" key={item.titulo}>
+              <div
+                className="stat-icon-wrapper"
+                style={esAlerta ? { background: '#fff1f2', color: '#e11d48' } : {}}
+              >
+                <Icono size={22} />
               </div>
-              <div>
-                <span>{item.titulo}</span>
-                <strong>{item.valor}</strong>
+              <div className="stat-content">
+                <span className="stat-label">{item.titulo}</span>
+                <span className="stat-value">{item.valor}</span>
               </div>
-            </article>
+            </div>
           );
         })}
       </div>
 
-      <section className="cxc-panel">
+      <section className="content-box">
         <div className="cxc-toolbar">
           <div className="cxc-search">
             <Search size={18} />
@@ -299,8 +303,8 @@ export default function CuentasPorCobrarView() {
             <span>No hay cuentas que coincidan con la búsqueda o el filtro.</span>
           </div>
         ) : (
-          <div className="cxc-table-wrapper">
-            <table className="cxc-table">
+          <div className="table-container-clean">
+            <table className="table-clean">
               <thead>
                 <tr>
                   <th>Cliente</th>
@@ -333,7 +337,7 @@ export default function CuentasPorCobrarView() {
                       <td>{moneda(cuenta.monto_original)}</td>
                       <td className="cxc-balance">{moneda(saldo)}</td>
                       <td>
-                        <span className={`cxc-status ${claseEstado(estado)}`}>
+                        <span className={`badge ${claseEstado(estado)}`}>
                           {estado}
                         </span>
                       </td>

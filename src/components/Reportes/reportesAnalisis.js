@@ -184,9 +184,9 @@ const FECHADOS = {
         promedio: 'Ticket promedio',
         graf: 'Ventas',
         subGraf: 'Total vendido durante el periodo seleccionado',
-        rankClave: (r) => (r.forma_pago ? formatoEstado(r.forma_pago) : 'Sin método'),
-        rankTitulo: 'Ventas por método de pago',
-        rankSub: 'Importe vendido en el periodo',
+        rankClave: (r) => r.nombre_vendedor || r.username_vendedor || (r.forma_pago ? formatoEstado(r.forma_pago) : 'Sin vendedor'),
+        rankTitulo: 'Ventas por usuario (vendedor)',
+        rankSub: 'Importe vendido por colaborador en el periodo',
         invertir: false
     },
     compras: {
@@ -252,18 +252,45 @@ export function construirAnalisis({ tipo, registros, filtros, modo, previoTotal 
             tonoVar = bueno ? 'green' : 'red';
         }
 
+        let topVendedorSemana = null;
+        if (tipo === 'ventas' && n > 0) {
+            const mapa = new Map();
+            registros.forEach((r) => {
+                const nom = r.nombre_vendedor || r.username_vendedor || 'Vendedor';
+                const actual = mapa.get(nom) || { nombre_usuario: nom, monto: 0, total_ventas: 0 };
+                actual.monto += Number(r.total || 0);
+                actual.total_ventas += 1;
+                mapa.set(nom, actual);
+            });
+            topVendedorSemana = [...mapa.values()].sort((a, b) => b.monto - a.monto)[0] || null;
+        }
+
+        const kpisBase = [
+            { titulo: cfg.titulo, valor: formatoMoneda(total), icono: 'barras', tono: 'blue' },
+            { titulo: cfg.registradas, valor: formatoNumero(n), icono: 'lista', tono: 'dark' },
+            { titulo: cfg.promedio, valor: formatoMoneda(promedio), icono: 'cartera', tono: 'amber' }
+        ];
+
+        if (tipo === 'ventas' && topVendedorSemana) {
+            kpisBase.push({
+                titulo: 'Top vendedor',
+                valor: topVendedorSemana.nombre_usuario,
+                subvalor: `${topVendedorSemana.total_ventas} ventas · ${formatoMoneda(topVendedorSemana.monto)}`,
+                icono: 'tendencia',
+                tono: 'green'
+            });
+        } else {
+            kpisBase.push({
+                titulo: 'Frente al periodo anterior',
+                valor: variacion == null ? '—' : `${variacion >= 0 ? '+' : ''}${variacion.toFixed(1)}%`,
+                icono: variacion != null && variacion < 0 ? 'baja' : 'tendencia',
+                tono: tonoVar
+            });
+        }
+
         return {
-            kpis: [
-                { titulo: cfg.titulo, valor: formatoMoneda(total), icono: 'barras', tono: 'blue' },
-                { titulo: cfg.registradas, valor: formatoNumero(n), icono: 'lista', tono: 'dark' },
-                { titulo: cfg.promedio, valor: formatoMoneda(promedio), icono: 'cartera', tono: 'amber' },
-                {
-                    titulo: 'Frente al periodo anterior',
-                    valor: variacion == null ? '—' : `${variacion >= 0 ? '+' : ''}${variacion.toFixed(1)}%`,
-                    icono: variacion != null && variacion < 0 ? 'baja' : 'tendencia',
-                    tono: tonoVar
-                }
-            ],
+            kpis: kpisBase,
+            topVendedorSemana,
             grafica: {
                 titulo: `${cfg.graf} ${SUFIJO_MODO[modo] || 'del periodo'}`,
                 subtitulo: cfg.subGraf,

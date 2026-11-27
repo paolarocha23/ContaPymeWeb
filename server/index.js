@@ -231,12 +231,20 @@ app.use(errorHandler);
 // Inicializar base de datos y servidor
 initializeDatabase()
   .then(() => {
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log('\n======================================================');
       console.log('SERVIDOR REST API CONTAPYME INICIADO');
       console.log(`Puerto: ${PORT}`);
       console.log(`Base URL: http://localhost:${PORT}/api`);
       console.log('======================================================\n');
+    });
+
+    server.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.error(`❌ El puerto ${PORT} ya está en uso. Cierra el proceso anterior o cambia el PORT en .env.`);
+      } else {
+        console.error('❌ Error en el servidor HTTP:', err.message);
+      }
     });
   })
   .catch((err) => {

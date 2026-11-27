@@ -113,6 +113,11 @@
     color: #b7791f;
 }
 
+.cpy-notificacion-item.cpy-item-preventivo .cpy-notificacion-icono {
+    background: #eef2ff;
+    color: #4338ca;
+}
+
 /* CONTENIDO DE CADA ALERTA */
 .cpy-notificacion-contenido {
     display: flex;

@@ -13,7 +13,8 @@ import {
     obtenerDetalleInventario,
     obtenerDetalleCuentasPorCobrar,
     obtenerDetalleCuentasPorPagar,
-    obtenerDetalleMovimientosInventario
+    obtenerDetalleMovimientosInventario,
+    obtenerTopVendedorSemana
 } from '../repositories/reportesRepository.js';
 
 // Convertir valores numéricos de PostgreSQL a números JavaScript.
@@ -75,7 +76,8 @@ export const obtenerResumenGeneralReportes = async (filtros = {}, empresaId = nu
         gastos,
         cuentasPorCobrar,
         cuentasPorPagar,
-        inventario
+        inventario,
+        topVendedorSemana
     ] = await Promise.all([
         obtenerReporteVentas(filtrosValidados, empresaId),
         obtenerReporteCompras(filtrosValidados, empresaId),
@@ -83,7 +85,8 @@ export const obtenerResumenGeneralReportes = async (filtros = {}, empresaId = nu
         obtenerReporteGastos(filtrosValidados, empresaId),
         obtenerReporteCuentasPorCobrar(empresaId),
         obtenerReporteCuentasPorPagar(empresaId),
-        obtenerReporteInventario(empresaId)
+        obtenerReporteInventario(empresaId),
+        obtenerTopVendedorSemana(empresaId)
     ]);
 
     const ventasData = convertirNumeros(ventas);
@@ -108,6 +111,15 @@ export const obtenerResumenGeneralReportes = async (filtros = {}, empresaId = nu
         cuentas_por_cobrar: cxcData,
         cuentas_por_pagar: cxpData,
         inventario: inventarioData,
+        top_vendedor_semana: topVendedorSemana
+            ? {
+                id_usuario: topVendedorSemana.id_usuario,
+                nombre_usuario: topVendedorSemana.nombre_usuario,
+                username: topVendedorSemana.username,
+                total_ventas: Number(topVendedorSemana.total_ventas || 0),
+                monto_total: Number(topVendedorSemana.monto_total || 0)
+            }
+            : null,
         indicadores: {
             balance_ingresos_gastos: balance,
             saldo_total_por_cobrar: cxcData.saldo_pendiente,

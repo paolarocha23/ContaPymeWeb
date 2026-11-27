@@ -316,8 +316,7 @@ export async function cancelar(idParam, motivo = '', idUsuario, empresaId = null
     // 4. Cancelar Cuenta por Pagar asociada
     await repo.cancelarCuentaPorPagar(client, idCompra);
 
-    // 5. Revertir movimientos de gastos y caja si existieron
-    // Reversión de caja
+    // 5. Revertir movimientos de gastos, registrar reembolso (ingreso) y actualizar caja si fue en efectivo
     const movCajaRes = await client.query(`
       SELECT *
       FROM movimientos_caja
@@ -326,6 +325,7 @@ export async function cancelar(idParam, motivo = '', idUsuario, empresaId = null
         AND ($2::int IS NULL OR empresa_id = $2::int)
     `, [idCompra, compra.empresa_id || empresaId]);
 
+    let cajaRevertida = false;
     for (const mc of movCajaRes.rows) {
       if (mc.tipo === 'salida') {
         await gastosRepo.registrarMovimientoCaja({
@@ -335,6 +335,50 @@ export async function cancelar(idParam, motivo = '', idUsuario, empresaId = null
           monto: mc.monto,
           origen: 'compra',
           id_referencia: idCompra,
+          id_usuario: idUsuario,
+          empresa_id: compra.empresa_id || empresaId || 1
+        }, client);
+        cajaRevertida = true;
+      }
+    }
+
+    const montoPagadoCompra = Number(compra.monto_pagado || 0);
+    if (montoPagadoCompra > 0) {
+      const idCatIngreso = await repo.obtenerCategoriaReembolso(client, compra.empresa_id || empresaId);
+      const formaPagoCompra = String(compra.forma_pago || 'efectivo').toLowerCase();
+
+      const ingresoRes = await client.query(`
+        INSERT INTO ingresos (
+          concepto,
+          id_categoria,
+          monto,
+          forma_pago,
+          origen,
+          fecha,
+          id_usuario,
+          estatus,
+          empresa_id
+        ) VALUES ($1, $2, $3, $4, 'otro', CURRENT_TIMESTAMP, $5, 'activo', $6)
+        RETURNING *
+      `, [
+        `Reembolso por cancelación de compra folio ${compra.codigo}`,
+        idCatIngreso,
+        montoPagadoCompra,
+        formaPagoCompra,
+        idUsuario,
+        compra.empresa_id || empresaId || 1
+      ]);
+      const ingresoReembolso = ingresoRes.rows[0];
+
+      // Si fue en efectivo y no se había revertido ya por movimientos_caja, ingresar a caja
+      if (formaPagoCompra === 'efectivo' && !cajaRevertida) {
+        await gastosRepo.registrarMovimientoCaja({
+          fecha: new Date(),
+          tipo: 'entrada',
+          concepto: `Reembolso por cancelación de compra folio ${compra.codigo}`,
+          monto: montoPagadoCompra,
+          origen: 'ingreso',
+          id_referencia: ingresoReembolso.id_ingreso,
           id_usuario: idUsuario,
           empresa_id: compra.empresa_id || empresaId || 1
         }, client);
@@ -490,6 +534,7 @@ export async function devolver(idParam, body = {}, idUsuario, empresaId = null) 
     if (datos.resolucion === 'ingreso') {
       // El usuario solicitó ingreso (reembolso) directamente
       const idCatIngreso = await repo.obtenerCategoriaReembolso(client, compra.empresa_id || empresaId);
+      const formaPagoReembolso = datos.forma_pago || 'efectivo';
 
       const ingresoRes = await client.query(`
         INSERT INTO ingresos (
@@ -502,31 +547,34 @@ export async function devolver(idParam, body = {}, idUsuario, empresaId = null) 
           id_usuario,
           estatus,
           empresa_id
-        ) VALUES ($1, $2, $3, 'efectivo', 'otro', CURRENT_TIMESTAMP, $4, 'activo', $5)
+        ) VALUES ($1, $2, $3, $4, 'otro', CURRENT_TIMESTAMP, $5, 'activo', $6)
         RETURNING *
       `, [
         `Reembolso por devolución de compra folio ${compra.codigo}`,
         idCatIngreso,
         montoDevuelto,
+        formaPagoReembolso,
         idUsuario,
         compra.empresa_id || empresaId || 1
       ]);
       ingresoReembolso = ingresoRes.rows[0];
 
-      // Entrada en caja en efectivo
-      await gastosRepo.registrarMovimientoCaja({
-        fecha: new Date(),
-        tipo: 'entrada',
-        concepto: `Reembolso por devolución de compra folio ${compra.codigo}`,
-        monto: montoDevuelto,
-        origen: 'ingreso',
-        id_referencia: ingresoReembolso.id_ingreso,
-        id_usuario: idUsuario,
-        empresa_id: compra.empresa_id || empresaId || 1
-      }, client);
+      // Si el reembolso se recibe en efectivo, actualiza el saldo de caja
+      if (formaPagoReembolso === 'efectivo') {
+        await gastosRepo.registrarMovimientoCaja({
+          fecha: new Date(),
+          tipo: 'entrada',
+          concepto: `Reembolso por devolución de compra folio ${compra.codigo}`,
+          monto: montoDevuelto,
+          origen: 'ingreso',
+          id_referencia: ingresoReembolso.id_ingreso,
+          id_usuario: idUsuario,
+          empresa_id: compra.empresa_id || empresaId || 1
+        }, client);
+      }
 
     } else {
-      // Ajustar cuenta por pagar (resolución por defecto)
+      // Ajustar cuenta por pagar (resolución por defecto si está pendiente de pago)
       if (cxp && Number(cxp.saldo_pendiente) > 0) {
         const saldoAnterior = Number(cxp.saldo_pendiente);
 
@@ -556,6 +604,7 @@ export async function devolver(idParam, body = {}, idUsuario, empresaId = null) 
 
           if (excedente > 0) {
             const idCatIngreso = await repo.obtenerCategoriaReembolso(client, compra.empresa_id || empresaId);
+            const formaPagoReembolso = datos.forma_pago || 'efectivo';
 
             const ingresoRes = await client.query(`
               INSERT INTO ingresos (
@@ -568,32 +617,36 @@ export async function devolver(idParam, body = {}, idUsuario, empresaId = null) 
                 id_usuario,
                 estatus,
                 empresa_id
-              ) VALUES ($1, $2, $3, 'efectivo', 'otro', CURRENT_TIMESTAMP, $4, 'activo', $5)
+              ) VALUES ($1, $2, $3, $4, 'otro', CURRENT_TIMESTAMP, $5, 'activo', $6)
               RETURNING *
             `, [
               `Reembolso excedente por devolución compra folio ${compra.codigo}`,
               idCatIngreso,
               excedente,
+              formaPagoReembolso,
               idUsuario,
               compra.empresa_id || empresaId || 1
             ]);
             ingresoReembolso = ingresoRes.rows[0];
 
-            await gastosRepo.registrarMovimientoCaja({
-              fecha: new Date(),
-              tipo: 'entrada',
-              concepto: `Reembolso excedente por devolución compra folio ${compra.codigo}`,
-              monto: excedente,
-              origen: 'ingreso',
-              id_referencia: ingresoReembolso.id_ingreso,
-              id_usuario: idUsuario,
-              empresa_id: compra.empresa_id || empresaId || 1
-            }, client);
+            if (formaPagoReembolso === 'efectivo') {
+              await gastosRepo.registrarMovimientoCaja({
+                fecha: new Date(),
+                tipo: 'entrada',
+                concepto: `Reembolso excedente por devolución compra folio ${compra.codigo}`,
+                monto: excedente,
+                origen: 'ingreso',
+                id_referencia: ingresoReembolso.id_ingreso,
+                id_usuario: idUsuario,
+                empresa_id: compra.empresa_id || empresaId || 1
+              }, client);
+            }
           }
         }
       } else {
         // La compra ya estaba pagada o de contado: se genera ingreso por reembolso (RDF1006)
         const idCatIngreso = await repo.obtenerCategoriaReembolso(client, compra.empresa_id || empresaId);
+        const formaPagoReembolso = datos.forma_pago || 'efectivo';
 
         const ingresoRes = await client.query(`
           INSERT INTO ingresos (
@@ -606,27 +659,31 @@ export async function devolver(idParam, body = {}, idUsuario, empresaId = null) 
             id_usuario,
             estatus,
             empresa_id
-          ) VALUES ($1, $2, $3, 'efectivo', 'otro', CURRENT_TIMESTAMP, $4, 'activo', $5)
+          ) VALUES ($1, $2, $3, $4, 'otro', CURRENT_TIMESTAMP, $5, 'activo', $6)
           RETURNING *
         `, [
           `Reembolso por devolución de compra folio ${compra.codigo}`,
           idCatIngreso,
           montoDevuelto,
+          formaPagoReembolso,
           idUsuario,
           compra.empresa_id || empresaId || 1
         ]);
         ingresoReembolso = ingresoRes.rows[0];
 
-        await gastosRepo.registrarMovimientoCaja({
-          fecha: new Date(),
-          tipo: 'entrada',
-          concepto: `Reembolso por devolución de compra folio ${compra.codigo}`,
-          monto: montoDevuelto,
-          origen: 'ingreso',
-          id_referencia: ingresoReembolso.id_ingreso,
-          id_usuario: idUsuario,
-          empresa_id: compra.empresa_id || empresaId || 1
-        }, client);
+        // Solo si fue en efectivo se actualiza caja
+        if (formaPagoReembolso === 'efectivo') {
+          await gastosRepo.registrarMovimientoCaja({
+            fecha: new Date(),
+            tipo: 'entrada',
+            concepto: `Reembolso por devolución de compra folio ${compra.codigo}`,
+            monto: montoDevuelto,
+            origen: 'ingreso',
+            id_referencia: ingresoReembolso.id_ingreso,
+            id_usuario: idUsuario,
+            empresa_id: compra.empresa_id || empresaId || 1
+          }, client);
+        }
       }
     }
 

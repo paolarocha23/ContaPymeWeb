@@ -902,6 +902,10 @@ export const api = {
 
   async getDashboardData() {
     return this.request('/dashboard');
+  },
+
+  async getAsistenteFinanciero() {
+    return this.request('/dashboard/asistente-financiero');
   }
 };
 

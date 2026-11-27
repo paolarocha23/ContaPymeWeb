@@ -7,7 +7,9 @@ import {
     Package,
     RefreshCw,
     Wallet,
-    ArrowRight
+    ArrowRight,
+    ShieldAlert,
+    Sparkles
 } from 'lucide-react';
 
 export default function NotificacionesPanel({
@@ -17,22 +19,26 @@ export default function NotificacionesPanel({
     onActualizar,
     onNavigate
 }) {
-    const [filtro, setFiltro] = useState('todas'); // 'todas' | 'inventario' | 'cxc' | 'cxp'
+    const [filtro, setFiltro] = useState('todas'); // 'todas' | 'preventivas' | 'inventario' | 'cxc' | 'cxp' | 'caja'
     const total = notificaciones.length;
 
+    const conteoPreventivas = notificaciones.filter((n) => n.es_preventiva).length;
     const conteoInventario = notificaciones.filter((n) => n.categoria === 'inventario').length;
     const conteoCxc = notificaciones.filter((n) => n.categoria === 'cxc').length;
     const conteoCxp = notificaciones.filter((n) => n.categoria === 'cxp').length;
+    const conteoCaja = notificaciones.filter((n) => n.categoria === 'caja').length;
 
     const notificacionesFiltradas = notificaciones.filter((n) => {
         if (filtro === 'todas') return true;
+        if (filtro === 'preventivas') return Boolean(n.es_preventiva);
         return n.categoria === filtro;
     });
 
-    const obtenerIcono = (categoria) => {
+    const obtenerIcono = (categoria, esPreventiva) => {
         if (categoria === 'inventario') return <Package size={18} />;
         if (categoria === 'cxc') return <Clock3 size={18} />;
-        if (categoria === 'cxp') return <Wallet size={18} />;
+        if (categoria === 'cxp' || categoria === 'caja') return <Wallet size={18} />;
+        if (esPreventiva) return <Sparkles size={18} />;
         return <Bell size={18} />;
     };
 
@@ -40,7 +46,8 @@ export default function NotificacionesPanel({
         const nombres = {
             inventario: 'Inventario',
             cxc: 'Cuentas por Cobrar',
-            cxp: 'Cuentas por Pagar'
+            cxp: 'Cuentas por Pagar',
+            caja: 'Caja y Liquidez'
         };
         return nombres[categoria] || 'General';
     };
@@ -69,6 +76,8 @@ export default function NotificacionesPanel({
             onNavigate('cxc');
         } else if (alerta.categoria === 'cxp') {
             onNavigate('cxp');
+        } else if (alerta.categoria === 'caja') {
+            onNavigate('caja');
         }
     };
 
@@ -79,7 +88,9 @@ export default function NotificacionesPanel({
                 <div>
                     <h3>Notificaciones y Alertas</h3>
                     <p>
-                        {total === 1 ? '1 alerta requiere atención' : `${total} alertas requieren atención`}
+                        {conteoPreventivas > 0
+                            ? `${total} alertas (${conteoPreventivas} preventivas activas)`
+                            : total === 1 ? '1 alerta requiere atención' : `${total} alertas registradas`}
                     </p>
                 </div>
 
@@ -94,7 +105,7 @@ export default function NotificacionesPanel({
                 </button>
             </div>
 
-            {/* Pestañas de filtrado (RDF1704) */}
+            {/* Pestañas de filtrado */}
             <div
                 style={{
                     display: 'flex',
@@ -122,6 +133,25 @@ export default function NotificacionesPanel({
                 >
                     Todas ({total})
                 </button>
+
+                <button
+                    type="button"
+                    onClick={() => setFiltro('preventivas')}
+                    style={{
+                        padding: '4px 8px',
+                        borderRadius: 6,
+                        border: 'none',
+                        background: filtro === 'preventivas' ? '#4338ca' : 'transparent',
+                        color: filtro === 'preventivas' ? '#fff' : '#4338ca',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap'
+                    }}
+                >
+                    Preventivas ({conteoPreventivas})
+                </button>
+
                 <button
                     type="button"
                     onClick={() => setFiltro('inventario')}
@@ -139,6 +169,7 @@ export default function NotificacionesPanel({
                 >
                     Inventario ({conteoInventario})
                 </button>
+
                 <button
                     type="button"
                     onClick={() => setFiltro('cxc')}
@@ -156,6 +187,7 @@ export default function NotificacionesPanel({
                 >
                     Cobros ({conteoCxc})
                 </button>
+
                 <button
                     type="button"
                     onClick={() => setFiltro('cxp')}
@@ -173,6 +205,26 @@ export default function NotificacionesPanel({
                 >
                     Pagos ({conteoCxp})
                 </button>
+
+                {conteoCaja > 0 && (
+                    <button
+                        type="button"
+                        onClick={() => setFiltro('caja')}
+                        style={{
+                            padding: '4px 8px',
+                            borderRadius: 6,
+                            border: 'none',
+                            background: filtro === 'caja' ? '#142a95' : 'transparent',
+                            color: filtro === 'caja' ? '#fff' : '#475569',
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap'
+                        }}
+                    >
+                        Caja ({conteoCaja})
+                    </button>
+                )}
             </div>
 
             {/* Lista de alertas */}
@@ -203,20 +255,68 @@ export default function NotificacionesPanel({
                     notificacionesFiltradas.map((alerta) => (
                         <div
                             key={alerta.id || alerta.id_notificacion}
-                            className={`cpy-notificacion-item prioridad-${alerta.prioridad}`}
+                            className={`cpy-notificacion-item prioridad-${alerta.prioridad}${alerta.es_preventiva ? ' cpy-item-preventivo' : ''}`}
                             onClick={() => handleItemClick(alerta)}
                             style={{ cursor: onNavigate ? 'pointer' : 'default' }}
                             title={onNavigate ? `Ir al módulo de ${obtenerCategoriaTexto(alerta.categoria)}` : ''}
                         >
                             <div className="cpy-notificacion-icono">
-                                {obtenerIcono(alerta.categoria)}
+                                {obtenerIcono(alerta.categoria, alerta.es_preventiva)}
                             </div>
 
                             <div className="cpy-notificacion-contenido">
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span className="cpy-notificacion-categoria">
-                                        {obtenerCategoriaTexto(alerta.categoria)}
-                                    </span>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <span className="cpy-notificacion-categoria">
+                                            {obtenerCategoriaTexto(alerta.categoria)}
+                                        </span>
+                                        {alerta.es_preventiva && (
+                                            <span
+                                                style={{
+                                                    fontSize: '9px',
+                                                    fontWeight: 800,
+                                                    letterSpacing: '0.04em',
+                                                    padding: '2px 5px',
+                                                    borderRadius: 4,
+                                                    background: '#e0e7ff',
+                                                    color: '#3730a3'
+                                                }}
+                                            >
+                                                PREVENTIVA
+                                            </span>
+                                        )}
+                                        {alerta.subtipo === 'vencida' && (
+                                            <span
+                                                style={{
+                                                    fontSize: '9px',
+                                                    fontWeight: 800,
+                                                    letterSpacing: '0.04em',
+                                                    padding: '2px 5px',
+                                                    borderRadius: 4,
+                                                    background: '#fee2e2',
+                                                    color: '#991b1b'
+                                                }}
+                                            >
+                                                VENCIDA
+                                            </span>
+                                        )}
+                                        {alerta.subtipo === 'vence_hoy' && (
+                                            <span
+                                                style={{
+                                                    fontSize: '9px',
+                                                    fontWeight: 800,
+                                                    letterSpacing: '0.04em',
+                                                    padding: '2px 5px',
+                                                    borderRadius: 4,
+                                                    background: '#ffedd5',
+                                                    color: '#9a3412'
+                                                }}
+                                            >
+                                                VENCE HOY
+                                            </span>
+                                        )}
+                                    </div>
+
                                     {alerta.fecha && (
                                         <span style={{ fontSize: '10px', color: '#94a3b8' }}>
                                             {formatearFecha(alerta.fecha)}

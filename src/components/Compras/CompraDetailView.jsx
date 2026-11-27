@@ -202,7 +202,12 @@ export default function CompraDetailView({ idCompra, onBack, onChanged }) {
                 <table className="table-clean">
                   <thead>
                     <tr>
-                      <th>FOLIO</th><th>FECHA</th><th>TIPO</th><th>USUARIO</th><th>MOTIVO</th><th>MONTO DEVUELTO</th>
+                      <th>FOLIO</th>
+                      <th>FECHA</th>
+                      <th>TIPO</th>
+                      <th>USUARIO</th>
+                      <th>MOTIVO / PRODUCTOS DEVUELTOS</th>
+                      <th>MONTO DEVUELTO</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -210,10 +215,32 @@ export default function CompraDetailView({ idCompra, onBack, onChanged }) {
                       <tr key={dev.id_devolucion}>
                         <td className="op-code">DEV-{pad4(dev.id_devolucion)}</td>
                         <td>{formatFechaCorta(dev.fecha)}</td>
-                        <td style={{ textTransform: 'capitalize' }}>{dev.tipo}</td>
+                        <td style={{ textTransform: 'capitalize' }}>
+                          <span style={{
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            background: dev.tipo === 'total' ? '#fef2f2' : '#eff6ff',
+                            color: dev.tipo === 'total' ? '#b91c1c' : '#1d4ed8'
+                          }}>
+                            {dev.tipo}
+                          </span>
+                        </td>
                         <td>{dev.usuario_nombre || '—'}</td>
-                        <td>{dev.observaciones || '—'}</td>
-                        <td><b style={{ color: '#b91c1c' }}>-{formatMoney(dev.monto_total)}</b></td>
+                        <td>
+                          <div><b>{dev.observaciones || 'Sin observaciones'}</b></div>
+                          {Array.isArray(dev.items) && dev.items.length > 0 && (
+                            <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                              {dev.items.map((it, idx) => (
+                                <div key={idx} style={{ fontSize: '11.5px', color: '#475569' }}>
+                                  • {it.cantidad} × <b>{it.producto_nombre || 'Producto'}</b> ({formatMoney(it.costo_unitario)}) = <span style={{ color: '#0f172a', fontWeight: 600 }}>{formatMoney(it.importe || (it.cantidad * it.costo_unitario))}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                        <td><b style={{ color: '#b91c1c', fontSize: '13.5px' }}>-{formatMoney(dev.monto_total)}</b></td>
                       </tr>
                     ))}
                   </tbody>

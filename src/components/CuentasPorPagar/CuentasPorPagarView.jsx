@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useCuentasPorPagar } from '../../hooks/useCuentasPorPagar';
 import { api } from '../../services/api';
+import '../CuentasPorCobrar/CuentasPorCobrar.css';
 
 const formatoMoneda = (valor) =>
     new Intl.NumberFormat('es-MX', {
@@ -703,7 +704,6 @@ export default function CuentasPorPagarView() {
                                     >
                                         <option value="efectivo">Efectivo</option>
                                         <option value="tarjeta">Tarjeta</option>
-                                        <option value="transfer">Transferencia</option>
                                     </select>
                                 </div>
 

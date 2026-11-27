@@ -619,6 +619,7 @@ export async function listarDevoluciones(idCompra, db = pool) {
           'id_producto', ddc.id_producto,
           'cantidad', ddc.cantidad,
           'costo_unitario', ddc.costo_unitario,
+          'importe', ROUND((ddc.cantidad * ddc.costo_unitario)::numeric, 2),
           'producto_nombre', p.nombre,
           'codigo_producto', p.codigo
         )

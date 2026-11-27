@@ -156,6 +156,9 @@ export function validarCompra(body = {}) {
 export function validarDevolucionCompra(body = {}) {
   const resolucion = texto(body.resolucion).toLowerCase() === 'ingreso' ? 'ingreso' : 'cxp';
   const observaciones = texto(body.observaciones || body.motivo) || null;
+  const fpRaw = texto(body.forma_pago || body.metodo_reembolso || 'efectivo').toLowerCase();
+  const formasPermitidas = ['efectivo', 'transferencia', 'tarjeta', 'cheque', 'otro'];
+  const forma_pago = formasPermitidas.includes(fpRaw) ? fpRaw : 'efectivo';
   const lista = Array.isArray(body.items) ? body.items : [];
 
   if (lista.length === 0) {
@@ -177,5 +180,5 @@ export function validarDevolucionCompra(body = {}) {
 
   const items = [...mapa].map(([id_producto, cantidad]) => ({ id_producto, cantidad }));
 
-  return { resolucion, observaciones, items };
+  return { resolucion, forma_pago, observaciones, items };
 }

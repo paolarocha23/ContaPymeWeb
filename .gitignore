@@ -23,6 +23,7 @@ dev-dist
 *.njsproj
 *.sln
 *.sw?
+.env
 # Variables de entorno
 !.env.example
 

@@ -169,7 +169,15 @@ export default function DetalleVentaView({ idVenta, onBack, onVentaActualizada, 
           <button type="button" className="ven-btn ven-btn-outline" onClick={() => onVerTicket?.({ id_venta: venta.id, codigo: venta.codigo })}>
             <Receipt size={16} /> Ver ticket
           </button>
-          {!cancelada && (
+          {!cancelada && (() => {
+            try {
+              const u = JSON.parse(localStorage.getItem('user') || '{}');
+              const r = String(u.rol_nombre || u.rol || '').toLowerCase();
+              return r === 'administrador' || r === 'encargado' || r === 'admin';
+            } catch {
+              return false;
+            }
+          })() && (
             <>
               <button type="button" className="ven-btn ven-btn-outline" onClick={() => setDevolucionOpen(true)}>
                 <RotateCcw size={16} /> Registrar devolución

@@ -3,12 +3,13 @@ import {
   getProveedores, getStats, getProveedorById,
   createProveedor, updateProveedor, toggleProveedorStatus
 } from '../controllers/proveedorController.js';
-import { verifyToken } from '../middleware/auth.js';
+import { verifyToken, requirePermission } from '../middleware/auth.js';
 import { errorHandler } from '../utils/http.js';
 
 const router = Router();
 
 router.use(verifyToken);
+router.use(requirePermission('proveedores'));
 
 router.get('/', getProveedores);
 router.get('/stats', getStats);          // antes de '/:id'

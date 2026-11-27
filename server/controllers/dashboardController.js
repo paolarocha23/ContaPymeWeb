@@ -1,5 +1,6 @@
 import pool from '../config/db.js';
 import { asyncHandler } from '../utils/http.js';
+import { generarAnalisisFinancieroIA } from '../services/asistenteFinancieroService.js';
 
 const MESES_ES = {
   'January': 'Enero',
@@ -365,5 +366,15 @@ export const getDashboardSummary = asyncHandler(async (req, res) => {
         }))
       }
     }
+  });
+});
+
+export const getAsistenteFinanciero = asyncHandler(async (req, res) => {
+  const empresaId = req.user?.empresa_id || 1;
+  const analisis = await generarAnalisisFinancieroIA(empresaId);
+  return res.status(200).json({
+    success: true,
+    message: 'Análisis financiero inteligente obtenido correctamente',
+    data: analisis
   });
 });
